@@ -14,6 +14,7 @@ import { mockUsers } from './data/mockData';
 import { Bell } from 'lucide-react';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
+import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
 
 type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'notifications' | 'reports' | 'admin';
 
@@ -101,7 +102,12 @@ export default function App() {
           {/* Top Header */}
           <header className="border-b bg-white sticky top-0 z-10">
             <div className="flex items-center justify-between px-6 py-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <img 
+                  src={logoEspol} 
+                  alt="ESPOL" 
+                  className="h-6 w-auto object-contain"
+                />
                 <h2 className="text-muted-foreground">
                   Sistema de Gestión Documental - FIEC
                 </h2>

@@ -56,7 +56,7 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
       return acc;
     }, [] as { name: string; value: number }[]);
 
-  const COLORS = ['#004C97', '#FFC107', '#00A8E8', '#6C757D', '#28A745'];
+  const COLORS = ['#002E5D', '#0072CE', '#00A8E8', '#64748b', '#10b981'];
 
   const statusLabels: Record<string, string> = {
     'DRAFT': 'Borrador',

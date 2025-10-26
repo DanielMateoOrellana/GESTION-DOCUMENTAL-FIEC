@@ -138,8 +138,8 @@ export function ReportsPanel({ currentUser }: ReportsPanelProps) {
                   formatter={(value: any) => [value, '']}
                 />
                 <Legend />
-                <Bar dataKey="completed" name="Completados" fill="#28A745" />
-                <Bar dataKey="inProgress" name="En Progreso" fill="#FFC107" />
+                <Bar dataKey="completed" name="Completados" fill="#10b981" />
+                <Bar dataKey="inProgress" name="En Progreso" fill="#0072CE" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -161,8 +161,8 @@ export function ReportsPanel({ currentUser }: ReportsPanelProps) {
                   formatter={(value: any) => [value, '']}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="total" name="Total" stroke="#004C97" strokeWidth={2} />
-                <Line type="monotone" dataKey="completed" name="Completados" stroke="#28A745" strokeWidth={2} />
+                <Line type="monotone" dataKey="total" name="Total" stroke="#002E5D" strokeWidth={2} />
+                <Line type="monotone" dataKey="completed" name="Completados" stroke="#10b981" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

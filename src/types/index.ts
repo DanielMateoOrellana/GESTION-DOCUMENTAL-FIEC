@@ -55,9 +55,26 @@ export interface StepTemplate {
   created_at: string;
 }
 
-export type ProcessState = 'DRAFT' | 'IN_PROGRESS' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CLOSED';
-export type StepStatus = 'PENDING' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SKIPPED';
-export type NotificationType = 'INFO' | 'REMINDER' | 'APPROVAL_PENDING' | 'RETURNED' | 'SYSTEM';
+export type ProcessState =
+  | "DRAFT"
+  | "IN_PROGRESS"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "CLOSED";
+export type StepStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "SKIPPED";
+export type NotificationType =
+  | "INFO"
+  | "REMINDER"
+  | "APPROVAL_PENDING"
+  | "RETURNED"
+  | "SYSTEM";
 
 export interface ProcessInstance {
   id: number;
