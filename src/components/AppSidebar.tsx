@@ -6,6 +6,8 @@ import {
   LogOut,
   FileText,
   BarChart3,
+  TrendingUp,
+  TagIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -42,6 +44,9 @@ export function AppSidebar({
       icon: LayoutDashboard,
     },
     { id: "processes", label: "Procesos", icon: FolderKanban },
+    { id: "tags", label: "Etiquetas", icon: TagIcon },
+    { id: "templates", label: "Plantillas", icon: FileText },
+    { id: "compliance", label: "Cumplimiento", icon: TrendingUp },
     {
       id: "notifications",
       label: "Notificaciones",
@@ -55,9 +60,9 @@ export function AppSidebar({
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex flex-col gap-3">
-          <img 
-            src={logoEspol} 
-            alt="ESPOL Logo" 
+          <img
+            src={logoEspol}
+            alt="ESPOL Logo"
             className="h-8 w-auto object-contain brightness-0 invert"
           />
           <div>

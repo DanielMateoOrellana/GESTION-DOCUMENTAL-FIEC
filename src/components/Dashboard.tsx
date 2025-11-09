@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
+import { ProcessInstanceCreator } from './ProcessInstanceCreator';
 import { 
   FolderKanban, 
   Plus, 

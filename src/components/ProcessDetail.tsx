@@ -27,15 +27,78 @@ import {
   FileText,
   Calendar,
   User as UserIcon,
-  Download
+  Download,
+  Home,
+  ChevronRight,
+  TagIcon
 } from 'lucide-react';
 import { UploadDocumentModal } from './UploadDocumentModal';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from './ui/breadcrumb';
 
 interface ProcessDetailProps {
   processId: number;
   currentUser: User;
   onBack: () => void;
 }
+
+// Mock process tags
+const mockProcessTags = [
+  { process_id: 1, tag_id: 1, name: 'Urgente', color: '#EF4444' },
+  { process_id: 1, tag_id: 2, name: 'Prioritario', color: '#F59E0B' },
+  { process_id: 2, tag_id: 3, name: 'Revisado', color: '#10B981' },
+  { process_id: 3, tag_id: 5, name: 'Completado', color: '#3B82F6' }
+];
+
+// Mock audit logs for process
+const mockProcessAuditLog = [
+  {
+    id: 1,
+    user_id: 1,
+    action: 'CREATE_PROCESS',
+    details: 'Proceso creado',
+    created_at: '2025-10-01T08:00:00Z',
+    ip_address: '192.168.1.10'
+  },
+  {
+    id: 2,
+    user_id: 1,
+    action: 'UPLOAD_FILE',
+    details: 'Cargó evidencias_docentes_2025_2.pdf v1',
+    created_at: '2025-10-08T14:30:00Z',
+    ip_address: '192.168.1.10'
+  },
+  {
+    id: 3,
+    user_id: 1,
+    action: 'UPLOAD_FILE',
+    details: 'Cargó evidencias_docentes_2025_2.pdf v2',
+    created_at: '2025-10-10T10:45:00Z',
+    ip_address: '192.168.1.10'
+  },
+  {
+    id: 4,
+    user_id: 2,
+    action: 'APPROVE_STEP',
+    details: 'Aprobó paso: Carga de Evidencias',
+    created_at: '2025-10-10T11:00:00Z',
+    ip_address: '192.168.1.15'
+  },
+  {
+    id: 5,
+    user_id: 2,
+    action: 'OBSERVE_STEP',
+    details: 'Observó paso: Revisión por Director - Falta documentación',
+    created_at: '2025-10-15T09:30:00Z',
+    ip_address: '192.168.1.15'
+  }
+];
 
 export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailProps) {
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -45,6 +108,7 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
   const process = mockProcessInstances.find(p => p.id === processId);
   const steps = getStepsForProcess(processId);
   const progress = getProgressForProcess(processId);
+  const processTags = mockProcessTags.filter(pt => pt.process_id === processId);
 
   if (!process) {
     return (
@@ -64,7 +128,8 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
     'PENDING_APPROVAL': 'Pendiente Aprobación',
     'APPROVED': 'Aprobado',
     'REJECTED': 'Rechazado',
-    'CLOSED': 'Cerrado'
+    'CLOSED': 'Cerrado',
+    'ARCHIVED': 'Archivado'
   };
 
   const stepStatusLabels: Record<string, string> = {
@@ -73,7 +138,9 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
     'SUBMITTED': 'Enviado',
     'APPROVED': 'Aprobado',
     'REJECTED': 'Rechazado',
-    'SKIPPED': 'Omitido'
+    'SKIPPED': 'Omitido',
+    'CARGADO': 'Cargado',
+    'OBSERVADO': 'Observado'
   };
 
   const getProcessStatusColor = (status: string) => {
@@ -83,7 +150,8 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
       'PENDING_APPROVAL': 'bg-yellow-100 text-yellow-800',
       'APPROVED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
-      'CLOSED': 'bg-gray-100 text-gray-800'
+      'CLOSED': 'bg-gray-100 text-gray-800',
+      'ARCHIVED': 'bg-gray-100 text-gray-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -95,7 +163,9 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
       'SUBMITTED': 'bg-purple-100 text-purple-800',
       'APPROVED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
-      'SKIPPED': 'bg-gray-100 text-gray-800'
+      'SKIPPED': 'bg-gray-100 text-gray-800',
+      'CARGADO': 'bg-blue-100 text-blue-800',
+      'OBSERVADO': 'bg-yellow-100 text-yellow-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -127,8 +197,61 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
     .filter(s => s.status !== 'SKIPPED')
     .every(s => s.status === 'APPROVED');
 
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('es-EC', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-EC', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="#" onClick={onBack}>
+              <Home className="w-4 h-4" />
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="#" onClick={onBack}>
+              Procesos
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="#" onClick={onBack}>
+              {processType?.name}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
+          <BreadcrumbItem>
+            <BreadcrumbPage>{process.title || `Proceso #${process.id}`}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -143,6 +266,22 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
             <div className="space-y-2 flex-1">
               <CardTitle>{process.title || processType?.name}</CardTitle>
               <CardDescription>{processType?.description}</CardDescription>
+              
+              {/* Tags */}
+              {processTags.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <TagIcon className="w-4 h-4 text-muted-foreground" />
+                  {processTags.map(tag => (
+                    <Badge
+                      key={tag.tag_id}
+                      style={{ backgroundColor: tag.color, color: '#fff' }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -155,7 +294,7 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
                 {process.due_at && (
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span>Vence: {new Date(process.due_at).toLocaleDateString('es-ES')}</span>
+                    <span>Vence: {formatDate(process.due_at)}</span>
                   </div>
                 )}
               </div>
@@ -235,7 +374,7 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
                         <p>Revisor: {reviewerRole?.name}</p>
                         {reviewer && <p>Revisado por: {reviewer.full_name}</p>}
                         {step.due_at && (
-                          <p>Fecha límite: {new Date(step.due_at).toLocaleDateString('es-ES')}</p>
+                          <p>Fecha límite: {formatDate(step.due_at)}</p>
                         )}
                       </div>
                     </div>
@@ -291,7 +430,7 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
                       </Button>
                       <Button variant="outline" size="sm">
                         <XCircle className="w-4 h-4 mr-1" />
-                        Rechazar
+                        Observar
                       </Button>
                     </>
                   )}
@@ -303,6 +442,39 @@ export function ProcessDetail({ processId, currentUser, onBack }: ProcessDetailP
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* Audit Log / Bitácora */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Bitácora del Proceso</CardTitle>
+          <CardDescription>Historial de acciones y eventos</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {mockProcessAuditLog.map(log => {
+              const user = getUserById(log.user_id);
+              return (
+                <div key={log.id} className="flex items-start gap-3 p-3 bg-secondary rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">{user?.full_name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {log.action}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{log.details}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <span>{formatDateTime(log.created_at)}</span>
+                      <span>•</span>
+                      <span>IP: {log.ip_address}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

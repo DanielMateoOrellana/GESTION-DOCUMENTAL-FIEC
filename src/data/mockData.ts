@@ -384,8 +384,9 @@ export const mockAuditLog: AuditLog[] = [
     action: 'UPLOAD_FILE',
     entity_type: 'file',
     entity_id: 1,
-    details: 'Uploaded evidencias_docentes_2025_2.pdf v1',
-    created_at: '2025-10-08T14:30:00Z'
+    details: 'Cargó evidencias_docentes_2025_2.pdf v1',
+    created_at: '2025-10-08T14:30:00Z',
+    ip_address: '192.168.1.10'
   },
   {
     id: 2,
@@ -393,8 +394,9 @@ export const mockAuditLog: AuditLog[] = [
     action: 'UPLOAD_FILE',
     entity_type: 'file',
     entity_id: 2,
-    details: 'Uploaded evidencias_docentes_2025_2.pdf v2',
-    created_at: '2025-10-10T10:45:00Z'
+    details: 'Cargó evidencias_docentes_2025_2.pdf v2',
+    created_at: '2025-10-10T10:45:00Z',
+    ip_address: '192.168.1.10'
   },
   {
     id: 3,
@@ -402,8 +404,9 @@ export const mockAuditLog: AuditLog[] = [
     action: 'APPROVE_STEP',
     entity_type: 'step_instance',
     entity_id: 1,
-    details: 'Approved step: Carga de Evidencias',
-    created_at: '2025-10-10T11:00:00Z'
+    details: 'Aprobó paso: Carga de Evidencias',
+    created_at: '2025-10-10T11:00:00Z',
+    ip_address: '192.168.1.15'
   }
 ];
 

@@ -9,6 +9,9 @@ import { ProcessDetail } from './components/ProcessDetail';
 import { NotificationPanel } from './components/NotificationPanel';
 import { AdminPanel } from './components/AdminPanel';
 import { ReportsPanel } from './components/ReportsPanel';
+import { CompliancePanel } from './components/CompliancePanel';
+import { TagManager } from './components/TagManager';
+import { TemplateManager } from './components/TemplateManager';
 import { User } from './types';
 import { mockUsers } from './data/mockData';
 import { Bell } from 'lucide-react';
@@ -16,7 +19,7 @@ import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
 
-type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'notifications' | 'reports' | 'admin';
+type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'notifications' | 'reports' | 'admin' | 'compliance' | 'tags' | 'templates';
 
 interface ViewData {
   processId?: number;
@@ -82,8 +85,14 @@ export default function App() {
         return <NotificationPanel currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'reports':
         return <ReportsPanel currentUser={currentUser} />;
+      case 'compliance':
+        return <CompliancePanel currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'admin':
         return <AdminPanel currentUser={currentUser} />;
+      case 'tags':
+        return <TagManager currentUser={currentUser} />;
+      case 'templates':
+        return <TemplateManager currentUser={currentUser} />;
       default:
         return <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />;
     }

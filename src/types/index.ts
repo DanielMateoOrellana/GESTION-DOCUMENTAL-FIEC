@@ -8,6 +8,7 @@ export interface User {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  roles?: Role[]; // Added for convenience
 }
 
 export interface Role {
@@ -16,6 +17,7 @@ export interface Role {
   name: string;
   description: string;
   created_at: string;
+  permissions?: string[]; // Added for permissions management
 }
 
 export interface UserRole {
@@ -42,6 +44,7 @@ export interface ProcessTemplate {
   is_published: boolean;
   created_by: number;
   created_at: string;
+  updated_at?: string; // Added
 }
 
 export interface StepTemplate {
@@ -61,14 +64,18 @@ export type ProcessState =
   | "PENDING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
-  | "CLOSED";
+  | "CLOSED"
+  | "ARCHIVED"; // Added ARCHIVED state
 export type StepStatus =
   | "PENDING"
   | "IN_PROGRESS"
   | "SUBMITTED"
   | "APPROVED"
   | "REJECTED"
-  | "SKIPPED";
+  | "SKIPPED"
+  | "CARGADO" // Added for loaded files
+  | "OBSERVADO"; // Added for observations
+
 export type NotificationType =
   | "INFO"
   | "REMINDER"
@@ -98,6 +105,8 @@ export interface ProcessInstance {
   created_at: string;
   updated_at: string;
   closed_at?: string;
+  tags?: string[]; // Added for TAG-001
+  metadata?: Record<string, any>; // Added for extra metadata
 }
 
 export interface StepInstance {
@@ -112,6 +121,7 @@ export interface StepInstance {
   due_at?: string;
   created_at: string;
   updated_at: string;
+  observation?: string; // Added for observations (DEC-001)
 }
 
 export interface File {
@@ -125,6 +135,8 @@ export interface File {
   sha256: string;
   uploaded_by: number;
   uploaded_at: string;
+  version_comment?: string; // Added for VER-001
+  replaced_file_id?: number; // Added to track previous version
 }
 
 export interface Notification {
@@ -149,6 +161,7 @@ export interface AuditLog {
   entity_id: number;
   details?: string;
   created_at: string;
+  ip_address?: string; // Added for BTA-001
 }
 
 export interface ProcessProgress {
@@ -173,4 +186,54 @@ export interface ExportLog {
   file_url: string;
   size_bytes: number;
   created_at: string;
+  filters?: string; // Added to track applied filters
+  export_type?: string; // Added (CSV, XLSX, ZIP, PDF)
+}
+
+// New interfaces for additional functionality
+
+export interface Tag {
+  id: number;
+  name: string;
+  color?: string;
+  created_by: number;
+  created_at: string;
+}
+
+export interface ProcessTag {
+  process_instance_id: number;
+  tag_id: number;
+  created_at: string;
+}
+
+export interface ArchiveOperation {
+  id: number;
+  user_id: number;
+  date_from: string;
+  date_to: string;
+  total_processes: number;
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface FileVersion {
+  file_id: number;
+  version: number;
+  uploaded_by: number;
+  uploaded_at: string;
+  comment?: string;
+  size_bytes: number;
+}
+
+export interface ProcessFilter {
+  process_type_id?: number;
+  year?: number;
+  month?: number;
+  responsible_user_id?: number;
+  state?: ProcessState;
+  tags?: string[];
+  search_text?: string;
+  date_from?: string;
+  date_to?: string;
 }
