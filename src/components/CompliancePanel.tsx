@@ -18,7 +18,7 @@ import {
   getUserById,
   getProcessTypeById
 } from '../data/mockData';
-import { AlertCircle, CheckCircle, TrendingUp, Filter, Download } from 'lucide-react';
+import { AlertCircle, CheckCircle, TrendingUp, Filter, Download, FileSpreadsheet, FileText, FileDown } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 
 interface CompliancePanelProps {
@@ -166,6 +166,10 @@ export function CompliancePanel({ currentUser, onViewChange }: CompliancePanelPr
           <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-2" />
             Filtros
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
           </Button>
         </div>
       </div>
@@ -357,6 +361,90 @@ export function CompliancePanel({ currentUser, onViewChange }: CompliancePanelPr
           </CardContent>
         </Card>
       </div>
+
+      {/* Exportaciones Disponibles */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Exportaciones Disponibles</CardTitle>
+          <CardDescription>
+            Descargue informes y reportes del sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-secondary/50">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <FileSpreadsheet className="w-8 h-8 text-green-600" />
+                  <div>
+                    <CardTitle className="text-base">Reporte de Procesos</CardTitle>
+                    <CardDescription className="text-xs">
+                      Listado completo en formato Excel
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  onClick={() => toast.success('Descarga iniciada: reporte_procesos.xlsx')}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar Excel
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-secondary/50">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <FileDown className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <CardTitle className="text-base">Auditoría del Sistema</CardTitle>
+                    <CardDescription className="text-xs">
+                      Registro de acciones en CSV
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => toast.success('Descarga iniciada: auditoria_sistema.csv')}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar CSV
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-secondary/50">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <FileText className="w-8 h-8 text-red-600" />
+                  <div>
+                    <CardTitle className="text-base">Estadísticas Generales</CardTitle>
+                    <CardDescription className="text-xs">
+                      Informe de cumplimiento en PDF
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => toast.success('Descarga iniciada: estadisticas.pdf')}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar PDF
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Missing Items Panel (AED-004) */}
       <Card>

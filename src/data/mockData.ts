@@ -15,37 +15,50 @@ import {
 export const mockUsers: User[] = [
   {
     id: 1,
-    full_name: 'Dr. Carlos Mendoza',
-    email: 'carlos.mendoza@fiec.edu.ec',
+    full_name: 'Renata Aviles',
+    email: 'renata.aviles@fiec.edu.ec',
     is_active: true,
     created_at: '2024-01-15T08:00:00Z',
     updated_at: '2024-01-15T08:00:00Z'
   },
   {
     id: 2,
-    full_name: 'Dra. María González',
-    email: 'maria.gonzalez@fiec.edu.ec',
+    full_name: 'Rafael Bonilla',
+    email: 'rafael.bonilla@fiec.edu.ec',
     is_active: true,
     created_at: '2024-01-15T08:00:00Z',
     updated_at: '2024-01-15T08:00:00Z'
   },
   {
     id: 3,
-    full_name: 'Ing. Juan Pérez',
-    email: 'juan.perez@fiec.edu.ec',
+    full_name: 'Roberto Magallanes',
+    email: 'roberto.magallanes@fiec.edu.ec',
     is_active: true,
+    created_at: '2024-01-15T08:00:00Z',
+    updated_at: '2024-01-15T08:00:00Z'
+  },
+  {
+    id: 4,
+    full_name: 'Admin Sistema',
+    email: 'admin@fiec.edu.ec',
+    is_active: true,
+    created_at: '2024-01-15T08:00:00Z',
+    updated_at: '2024-01-15T08:00:00Z'
+  },
+  {
+    id: 5,
+    full_name: 'Usuario Ejemplo',
+    email: 'usuario.ejemplo@fiec.edu.ec',
+    is_active: false,
     created_at: '2024-01-15T08:00:00Z',
     updated_at: '2024-01-15T08:00:00Z'
   }
 ];
 
 export const mockRoles: Role[] = [
-  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Acceso total al sistema', created_at: '2024-01-15T08:00:00Z' },
-  { id: 2, code: 'DEAN', name: 'Decano', description: 'Decano de la FIEC', created_at: '2024-01-15T08:00:00Z' },
-  { id: 3, code: 'SUBDEAN', name: 'Subdecano', description: 'Subdecano de la FIEC', created_at: '2024-01-15T08:00:00Z' },
-  { id: 4, code: 'DIRECTOR', name: 'Director de Carrera', description: 'Director de carrera', created_at: '2024-01-15T08:00:00Z' },
-  { id: 5, code: 'SECRETARY', name: 'Secretaría', description: 'Personal de secretaría', created_at: '2024-01-15T08:00:00Z' },
-  { id: 6, code: 'PROFESSOR', name: 'Docente', description: 'Docente de la FIEC', created_at: '2024-01-15T08:00:00Z' }
+  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Acceso total y gestión de usuarios/roles', created_at: '2024-01-15T08:00:00Z' },
+  { id: 2, code: 'SECRETARY', name: 'Secretaría', description: 'Crea tipos, plantillas e instancias; carga/edita evidencias; exporta', created_at: '2024-01-15T08:00:00Z' },
+  { id: 3, code: 'REVIEWER', name: 'Revisor', description: 'Lectura/descarga y comentarios', created_at: '2024-01-15T08:00:00Z' }
 ];
 
 export const mockProcessTypes: ProcessType[] = [

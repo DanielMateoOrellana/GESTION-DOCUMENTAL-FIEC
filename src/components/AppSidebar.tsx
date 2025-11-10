@@ -45,14 +45,7 @@ export function AppSidebar({
     },
     { id: "processes", label: "Procesos", icon: FolderKanban },
     { id: "tags", label: "Etiquetas", icon: TagIcon },
-    { id: "templates", label: "Plantillas", icon: FileText },
     { id: "compliance", label: "Cumplimiento", icon: TrendingUp },
-    {
-      id: "notifications",
-      label: "Notificaciones",
-      icon: Bell,
-    },
-    { id: "reports", label: "Reportes", icon: BarChart3 },
     { id: "admin", label: "Administración", icon: Settings },
   ];
 
@@ -109,7 +102,7 @@ export function AppSidebar({
                 {currentUser.full_name}
               </p>
               <p className="text-xs text-sidebar-foreground/70 truncate">
-                {currentUser.email}
+                Secretaría
               </p>
             </div>
           </div>

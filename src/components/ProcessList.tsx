@@ -3,6 +3,7 @@ import { ProcessInstance, User } from '../types';
 import { 
   mockProcessInstances, 
   mockProcessTypes,
+  mockUsers,
   getProcessTypeById,
   getUserById,
   getProgressForProcess
@@ -53,6 +54,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   const [filterMonth, setFilterMonth] = useState<string>('all');
   const [filterState, setFilterState] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterResponsible, setFilterResponsible] = useState<string>('all');
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [showNewProcessModal, setShowNewProcessModal] = useState(false);
 
@@ -62,6 +64,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     const matchesMonth = filterMonth === 'all' || process.month.toString() === filterMonth;
     const matchesState = filterState === 'all' || process.state === filterState;
     const matchesType = filterType === 'all' || process.process_type_id.toString() === filterType;
+    const matchesResponsible = filterResponsible === 'all' || process.responsible_user_id.toString() === filterResponsible;
     
     // Tag filtering (mock - in real app would check process_tags table)
     const matchesTags = selectedTags.length === 0 || selectedTags.some(tagId => {
@@ -72,7 +75,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
       return false;
     });
     
-    return matchesSearch && matchesYear && matchesMonth && matchesState && matchesType && matchesTags;
+    return matchesSearch && matchesYear && matchesMonth && matchesState && matchesType && matchesResponsible && matchesTags;
   });
 
   const statusLabels: Record<string, string> = {
@@ -132,6 +135,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     setFilterMonth('all');
     setFilterState('all');
     setFilterType('all');
+    setFilterResponsible('all');
     setSelectedTags([]);
   };
 
@@ -141,12 +145,22 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     filterMonth !== 'all',
     filterState !== 'all',
     filterType !== 'all',
+    filterResponsible !== 'all',
     selectedTags.length > 0
   ].filter(Boolean).length;
 
   const formatDate = (year: number, month: number) => {
     const monthName = MONTHS.find(m => m.value === month.toString())?.label || month.toString();
     return `${monthName} ${year}`;
+  };
+
+  // Helper function to get tags for a process (mock data)
+  const getProcessTags = (processId: number) => {
+    if (processId === 1) return [mockTags[0], mockTags[1]]; // Urgente, Prioritario
+    if (processId === 2) return [mockTags[2]]; // Revisado
+    if (processId === 3) return [mockTags[4]]; // Completado
+    if (processId === 4) return [mockTags[3]]; // En Espera
+    return [];
   };
 
   return (
@@ -178,8 +192,8 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* First row: Search, Year, Month, Type, State */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* First row: Search, Year, Month, Type, State, Responsible */}
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -240,6 +254,18 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                   <SelectItem value="APPROVED">Aprobado</SelectItem>
                   <SelectItem value="CLOSED">Cerrado</SelectItem>
                   <SelectItem value="ARCHIVED">Archivado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterResponsible} onValueChange={setFilterResponsible}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los responsables</SelectItem>
+                  {mockUsers.filter(u => u.is_active).map(user => (
+                    <SelectItem key={user.id} value={user.id.toString()}>{user.full_name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -318,6 +344,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Responsable</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Etiquetas</TableHead>
                   <TableHead>Progreso</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
@@ -327,6 +354,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                   const processType = getProcessTypeById(process.process_type_id);
                   const responsible = getUserById(process.responsible_user_id);
                   const progress = getProgressForProcess(process.id);
+                  const processTags = getProcessTags(process.id);
 
                   return (
                     <TableRow key={process.id} className="hover:bg-accent/50">
@@ -340,6 +368,26 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                         <Badge className={getStatusColor(process.state)}>
                           {statusLabels[process.state] || process.state}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {processTags.length > 0 ? (
+                            processTags.map(tag => (
+                              <Badge
+                                key={tag.id}
+                                style={{
+                                  backgroundColor: tag.color,
+                                  color: '#fff'
+                                }}
+                                className="text-xs"
+                              >
+                                {tag.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {progress && (

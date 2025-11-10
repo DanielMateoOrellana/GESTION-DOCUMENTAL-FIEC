@@ -6,9 +6,7 @@ import { AppSidebar } from './components/AppSidebar';
 import { Dashboard } from './components/Dashboard';
 import { ProcessList } from './components/ProcessList';
 import { ProcessDetail } from './components/ProcessDetail';
-import { NotificationPanel } from './components/NotificationPanel';
 import { AdminPanel } from './components/AdminPanel';
-import { ReportsPanel } from './components/ReportsPanel';
 import { CompliancePanel } from './components/CompliancePanel';
 import { TagManager } from './components/TagManager';
 import { TemplateManager } from './components/TemplateManager';
@@ -19,7 +17,7 @@ import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
 
-type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'notifications' | 'reports' | 'admin' | 'compliance' | 'tags' | 'templates';
+type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'admin' | 'compliance' | 'tags' | 'templates';
 
 interface ViewData {
   processId?: number;
@@ -40,7 +38,7 @@ export default function App() {
       setCurrentUser(user);
       setIsAuthenticated(true);
     } else {
-      alert('Credenciales inválidas. Use: carlos.mendoza@fiec.edu.ec / password');
+      alert('Credenciales inválidas. Use: renata.aviles@fiec.edu.ec / password');
     }
   };
 
@@ -81,14 +79,10 @@ export default function App() {
         ) : (
           <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
         );
-      case 'notifications':
-        return <NotificationPanel currentUser={currentUser} onViewChange={handleViewChange} />;
-      case 'reports':
-        return <ReportsPanel currentUser={currentUser} />;
-      case 'compliance':
-        return <CompliancePanel currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'admin':
         return <AdminPanel currentUser={currentUser} />;
+      case 'compliance':
+        return <CompliancePanel currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'tags':
         return <TagManager currentUser={currentUser} />;
       case 'templates':
@@ -122,19 +116,9 @@ export default function App() {
                 </h2>
               </div>
               <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="relative"
-                  onClick={() => handleViewChange('notifications')}
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadNotifications > 0 && (
-                    <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs bg-accent">
-                      {unreadNotifications}
-                    </Badge>
-                  )}
-                </Button>
+                <div className="text-sm text-muted-foreground">
+                  {currentUser.full_name} (Secretaría)
+                </div>
               </div>
             </div>
           </header>
