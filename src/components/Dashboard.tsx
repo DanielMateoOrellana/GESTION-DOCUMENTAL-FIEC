@@ -3,8 +3,7 @@ import {
   getProcessTypeById, 
   getUserById, 
   getProgressForProcess,
-  mockProcessInstances,
-  mockNotifications
+  mockProcessInstances
 } from '../data/mockData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -33,9 +32,6 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
     p => p.state !== 'CLOSED' && p.responsible_user_id === currentUser.id
   );
 
-  const unreadNotifications = mockNotifications.filter(
-    n => n.user_id === currentUser.id && !n.is_read
-  );
 
   const processStats = {
     total: activeProcesses.length,
@@ -135,19 +131,6 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Notificaciones</CardTitle>
-            <AlertCircle className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{unreadNotifications.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Notificaciones sin leer
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -233,45 +216,6 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Recent Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notificaciones Recientes</CardTitle>
-          <CardDescription>Últimas actualizaciones y recordatorios</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {unreadNotifications.slice(0, 5).map((notification) => (
-              <div
-                key={notification.id}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => onViewChange('notifications')}
-              >
-                <div className={`w-2 h-2 rounded-full mt-2 ${notification.is_read ? 'bg-gray-300' : 'bg-accent'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{notification.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{notification.body}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(notification.created_at).toLocaleDateString('es-ES', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {unreadNotifications.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No tienes notificaciones pendientes</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
