@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { ProcessInstance, User } from '../types';
+import { ProcessInstance, User, ProcessType, ProcessTemplate, StepTemplate } from '../types';
 import { 
   mockProcessInstances, 
   mockProcessTypes,
   mockUsers,
+  mockProcessTemplates,
+  mockStepTemplates,
   getProcessTypeById,
   getUserById,
   getProgressForProcess
@@ -16,12 +18,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Progress } from './ui/progress';
 import { ProcessTemplateSelector } from './ProcessTemplateSelector';
-import { Search, Filter, Plus, Eye, X } from 'lucide-react';
+import { Search, Filter, Plus, Eye, X, FileText, Trash2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Switch } from './ui/switch';
+import { mockRoles } from '../data/mockData';
 
 interface ProcessListProps {
   currentUser: User;
   onViewChange: (view: string, data?: any) => void;
+}
+
+interface TemplateStep {
+  id: string;
+  ord: number;
+  title: string;
+  description: string;
+  required: boolean;
+  reviewer_role_id: number;
 }
 
 // Mock tags for filtering
@@ -57,6 +73,14 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   const [filterResponsible, setFilterResponsible] = useState<string>('all');
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [showNewProcessModal, setShowNewProcessModal] = useState(false);
+  const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // To force re-render
+  
+  // New Template Form - Phase 1: Basic Info
+  const [templatePhase, setTemplatePhase] = useState<1 | 2>(1);
+  const [newTemplateProcessTypeId, setNewTemplateProcessTypeId] = useState<number | null>(null);
+  const [newTemplateDescription, setNewTemplateDescription] = useState('');
+  const [templateSteps, setTemplateSteps] = useState<TemplateStep[]>([]);
 
   const filteredProcesses = mockProcessInstances.filter(process => {
     const matchesSearch = process.title?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -163,6 +187,133 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     return [];
   };
 
+  const handleAddStep = () => {
+    const newStep: TemplateStep = {
+      id: `temp-${Date.now()}`,
+      ord: templateSteps.length + 1,
+      title: '',
+      description: '',
+      required: false,
+      reviewer_role_id: 2 // Default to Secretaría
+    };
+    setTemplateSteps([...templateSteps, newStep]);
+  };
+
+  const handleUpdateStep = (id: string, field: keyof TemplateStep, value: any) => {
+    setTemplateSteps(templateSteps.map(step => 
+      step.id === id ? { ...step, [field]: value } : step
+    ));
+  };
+
+  const handleRemoveStep = (id: string) => {
+    const filtered = templateSteps.filter(step => step.id !== id);
+    // Reorder
+    setTemplateSteps(filtered.map((step, idx) => ({ ...step, ord: idx + 1 })));
+  };
+
+  const handleMoveStep = (id: string, direction: 'up' | 'down') => {
+    const index = templateSteps.findIndex(s => s.id === id);
+    if (index === -1) return;
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === templateSteps.length - 1) return;
+
+    const newSteps = [...templateSteps];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
+    
+    // Update ord
+    newSteps.forEach((step, idx) => {
+      step.ord = idx + 1;
+    });
+    
+    setTemplateSteps(newSteps);
+  };
+
+  const handleNextPhase = () => {
+    if (!newTemplateProcessTypeId || !newTemplateDescription) {
+      toast.error('Por favor complete el tipo de proceso y descripción');
+      return;
+    }
+    setTemplatePhase(2);
+  };
+
+  const handleSaveTemplate = (publish: boolean = false) => {
+    if (templateSteps.length === 0) {
+      toast.error('La plantilla debe tener al menos un paso');
+      return;
+    }
+
+    // Validate all steps have title and description
+    const invalidSteps = templateSteps.filter(step => !step.title || !step.description);
+    if (invalidSteps.length > 0) {
+      toast.error('Todos los pasos deben tener título y descripción');
+      return;
+    }
+
+    // Validate at least one required step when publishing
+    if (publish) {
+      const hasRequiredStep = templateSteps.some(step => step.required);
+      if (!hasRequiredStep) {
+        toast.error('Debe haber al menos un paso obligatorio para publicar');
+        return;
+      }
+    }
+
+    const newTemplate: ProcessTemplate = {
+      id: Math.max(...mockProcessTemplates.map(t => t.id)) + 1,
+      process_type_id: newTemplateProcessTypeId!,
+      description: newTemplateDescription,
+      version: 1,
+      is_published: publish,
+      created_by: currentUser.id,
+      created_at: new Date().toISOString()
+    };
+
+    mockProcessTemplates.push(newTemplate);
+
+    // Create step templates
+    const newStepTemplates: StepTemplate[] = templateSteps.map((step, index) => ({
+      id: Math.max(...mockStepTemplates.map(s => s.id), 0) + index + 1,
+      template_id: newTemplate.id,
+      ord: step.ord,
+      title: step.title,
+      description: step.description,
+      required: step.required,
+      reviewer_role_id: step.reviewer_role_id,
+      created_at: new Date().toISOString()
+    }));
+
+    mockStepTemplates.push(...newStepTemplates);
+
+    const processType = mockProcessTypes.find(pt => pt.id === newTemplateProcessTypeId);
+    
+    toast.success(
+      publish 
+        ? `Plantilla "${processType?.name}" creada y publicada exitosamente`
+        : `Plantilla "${processType?.name}" guardada como borrador`
+    );
+    
+    // Reset form
+    setTemplatePhase(1);
+    setNewTemplateProcessTypeId(null);
+    setNewTemplateDescription('');
+    setTemplateSteps([]);
+    setShowNewTemplateModal(false);
+    setRefreshKey(prev => prev + 1); // Force re-render
+  };
+
+  const handleCloseTemplateModal = () => {
+    setTemplatePhase(1);
+    setNewTemplateProcessTypeId(null);
+    setNewTemplateDescription('');
+    setTemplateSteps([]);
+    setShowNewTemplateModal(false);
+  };
+
+  const getRoleName = (id: number) => {
+    return mockRoles.find(r => r.id === id)?.name || 'Desconocido';
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -172,10 +323,16 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
             Administra y monitorea todos los procesos institucionales
           </p>
         </div>
-        <Button onClick={() => setShowNewProcessModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Proceso
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowNewTemplateModal(true)}>
+            <FileText className="w-4 h-4 mr-2" />
+            Nueva Plantilla
+          </Button>
+          <Button onClick={() => setShowNewProcessModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Proceso
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -418,11 +575,250 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
         </CardContent>
       </Card>
 
+      {/* Templates Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Plantillas de Procesos ({mockProcessTemplates.length})</CardTitle>
+          <CardDescription>
+            Plantillas configuradas disponibles para crear procesos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {mockProcessTemplates.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-4" />
+                <p>No hay plantillas creadas</p>
+                <Button variant="outline" className="mt-4" onClick={() => setShowNewTemplateModal(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primera Plantilla
+                </Button>
+              </div>
+            ) : (
+              mockProcessTemplates.map(template => {
+                const processType = mockProcessTypes.find(pt => pt.id === template.process_type_id);
+                const steps = mockStepTemplates.filter(s => s.template_id === template.id).sort((a, b) => a.ord - b.ord);
+                const requiredCount = steps.filter(s => s.required).length;
+                
+                return (
+                  <Card key={template.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">
+                            {processType?.name || 'Tipo Desconocido'}
+                          </CardTitle>
+                          <CardDescription>{template.description}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={template.is_published ? "default" : "secondary"}>
+                            {template.is_published ? 'Publicada' : 'Borrador'}
+                          </Badge>
+                          <Badge variant="outline">v{template.version}</Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                          <span>{steps.length} pasos</span>
+                          <span>{requiredCount} obligatorios</span>
+                          <span>Creada {new Date(template.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {steps.map(step => (
+                          <div key={step.id} className="flex items-start gap-3 p-2 bg-secondary rounded-lg">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm">
+                              {step.ord}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span>{step.title}</span>
+                                {step.required && (
+                                  <Badge variant="destructive" className="text-xs">Obligatorio</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Revisor: {getRoleName(step.reviewer_role_id)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <ProcessTemplateSelector
+        key={refreshKey}
         open={showNewProcessModal}
         onClose={() => setShowNewProcessModal(false)}
         onCreateProcess={handleCreateProcess}
       />
+
+      {/* New Template Dialog */}
+      <Dialog open={showNewTemplateModal} onOpenChange={handleCloseTemplateModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Plantilla</DialogTitle>
+            <DialogDescription>
+              {templatePhase === 1 
+                ? 'Define el tipo de proceso y descripción de la plantilla'
+                : 'Configura los pasos de la plantilla'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {templatePhase === 1 && (
+              <>
+                <div>
+                  <Label htmlFor="template-type">Tipo de Proceso *</Label>
+                  <Select 
+                    value={newTemplateProcessTypeId?.toString()} 
+                    onValueChange={(value) => setNewTemplateProcessTypeId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mockProcessTypes.filter(t => t.active).map(type => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="template-description">Descripción de la Plantilla *</Label>
+                  <Textarea
+                    id="template-description"
+                    value={newTemplateDescription}
+                    onChange={(e) => setNewTemplateDescription(e.target.value)}
+                    placeholder="Describe esta plantilla..."
+                    rows={2}
+                  />
+                </div>
+              </>
+            )}
+
+            {templatePhase === 2 && (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <Label>Pasos de la Plantilla</Label>
+                  <Button size="sm" variant="outline" onClick={handleAddStep}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar Paso
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {templateSteps.map((step, index) => (
+                    <div key={step.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleMoveStep(step.id, 'up')}
+                            disabled={index === 0}
+                          >
+                            <GripVertical className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Badge>{step.ord}</Badge>
+                        <Input
+                          placeholder="Título del paso *"
+                          value={step.title}
+                          onChange={(e) => handleUpdateStep(step.id, 'title', e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveStep(step.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                      
+                      <Textarea
+                        placeholder="Descripción del paso *"
+                        value={step.description}
+                        onChange={(e) => handleUpdateStep(step.id, 'description', e.target.value)}
+                        rows={2}
+                      />
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={step.required}
+                            onCheckedChange={(checked) => handleUpdateStep(step.id, 'required', checked)}
+                          />
+                          <Label className="text-sm">Obligatorio</Label>
+                        </div>
+
+                        <div className="flex-1">
+                          <Select
+                            value={step.reviewer_role_id.toString()}
+                            onValueChange={(value) => handleUpdateStep(step.id, 'reviewer_role_id', parseInt(value))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {mockRoles.map(role => (
+                                <SelectItem key={role.id} value={role.id.toString()}>
+                                  Revisor: {role.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {templateSteps.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                      No hay pasos definidos. Haga clic en "Agregar Paso" para comenzar.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseTemplateModal}>
+              Cancelar
+            </Button>
+            {templatePhase === 1 ? (
+              <Button onClick={handleNextPhase}>
+                Siguiente: Configurar Pasos
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setTemplatePhase(1)}>
+                  Atrás
+                </Button>
+                <Button variant="secondary" onClick={() => handleSaveTemplate(false)}>
+                  Guardar Borrador
+                </Button>
+                <Button onClick={() => handleSaveTemplate(true)}>
+                  Guardar y Publicar
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
