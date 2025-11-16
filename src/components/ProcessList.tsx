@@ -74,7 +74,13 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [showNewProcessModal, setShowNewProcessModal] = useState(false);
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+  const [showNewProcessTypeModal, setShowNewProcessTypeModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // To force re-render
+  
+  // New Process Type Form
+  const [newProcessTypeName, setNewProcessTypeName] = useState('');
+  const [newProcessTypeCode, setNewProcessTypeCode] = useState('');
+  const [newProcessTypeDescription, setNewProcessTypeDescription] = useState('');
   
   // New Template Form - Phase 1: Basic Info
   const [templatePhase, setTemplatePhase] = useState<1 | 2>(1);
@@ -314,6 +320,40 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     return mockRoles.find(r => r.id === id)?.name || 'Desconocido';
   };
 
+  const handleCreateProcessType = () => {
+    if (!newProcessTypeName || !newProcessTypeCode || !newProcessTypeDescription) {
+      toast.error('Por favor complete todos los campos');
+      return;
+    }
+
+    const newType: ProcessType = {
+      id: Math.max(...mockProcessTypes.map(t => t.id)) + 1,
+      code: newProcessTypeCode.toUpperCase(),
+      name: newProcessTypeName,
+      description: newProcessTypeDescription,
+      active: true,
+      created_by: currentUser.id,
+      created_at: new Date().toISOString()
+    };
+
+    mockProcessTypes.push(newType);
+    toast.success(`Tipo de proceso "${newProcessTypeName}" creado exitosamente`);
+    
+    // Reset form
+    setNewProcessTypeName('');
+    setNewProcessTypeCode('');
+    setNewProcessTypeDescription('');
+    setShowNewProcessTypeModal(false);
+    setRefreshKey(prev => prev + 1); // Force re-render
+  };
+
+  const handleCloseProcessTypeModal = () => {
+    setNewProcessTypeName('');
+    setNewProcessTypeCode('');
+    setNewProcessTypeDescription('');
+    setShowNewProcessTypeModal(false);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -324,6 +364,10 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowNewProcessTypeModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Tipo de Proceso
+          </Button>
           <Button variant="outline" onClick={() => setShowNewTemplateModal(true)}>
             <FileText className="w-4 h-4 mr-2" />
             Nueva Plantilla
@@ -575,6 +619,47 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
         </CardContent>
       </Card>
 
+      {/* Process Types Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tipos de Procesos ({mockProcessTypes.filter(t => t.active).length})</CardTitle>
+          <CardDescription>
+            Catálogo de tipos de procesos definidos en el sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {mockProcessTypes.filter(t => t.active).map(type => {
+              const templatesCount = mockProcessTemplates.filter(t => t.process_type_id === type.id).length;
+              const processesCount = mockProcessInstances.filter(p => p.process_type_id === type.id).length;
+              
+              return (
+                <Card key={type.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{type.name}</CardTitle>
+                      <Badge variant="outline">{type.code}</Badge>
+                    </div>
+                    <CardDescription>{type.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                        <span>{templatesCount} plantillas</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>{processesCount} procesos</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Templates Section */}
       <Card>
         <CardHeader>
@@ -816,6 +901,60 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Process Type Dialog */}
+      <Dialog open={showNewProcessTypeModal} onOpenChange={handleCloseProcessTypeModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Tipo de Proceso</DialogTitle>
+            <DialogDescription>
+              Define los detalles del nuevo tipo de proceso
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div>
+              <Label htmlFor="process-type-name">Nombre del Tipo de Proceso *</Label>
+              <Input
+                id="process-type-name"
+                value={newProcessTypeName}
+                onChange={(e) => setNewProcessTypeName(e.target.value)}
+                placeholder="Nombre del tipo de proceso..."
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="process-type-code">Código del Tipo de Proceso *</Label>
+              <Input
+                id="process-type-code"
+                value={newProcessTypeCode}
+                onChange={(e) => setNewProcessTypeCode(e.target.value)}
+                placeholder="Código del tipo de proceso..."
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="process-type-description">Descripción del Tipo de Proceso *</Label>
+              <Textarea
+                id="process-type-description"
+                value={newProcessTypeDescription}
+                onChange={(e) => setNewProcessTypeDescription(e.target.value)}
+                placeholder="Describe este tipo de proceso..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseProcessTypeModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateProcessType}>
+              Crear Tipo de Proceso
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
