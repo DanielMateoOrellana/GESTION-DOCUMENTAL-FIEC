@@ -11,7 +11,7 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('renata.aviles@fiec.edu.ec');
+  const [email, setEmail] = useState('renata.avila@fiec.edu.ec');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ export function Login({ onLogin }: LoginProps) {
               Iniciar Sesión
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Credenciales de prueba: renata.aviles@fiec.edu.ec / password
+              Credenciales de prueba: renata.avila@fiec.edu.ec / password
             </p>
           </form>
         </CardContent>
