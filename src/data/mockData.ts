@@ -15,8 +15,8 @@ import {
 export const mockUsers: User[] = [
   {
     id: 1,
-    full_name: 'Renata Aviles',
-    email: 'renata.aviles@fiec.edu.ec',
+    full_name: 'Renata Avila',
+    email: 'renata.avila@fiec.edu.ec',
     is_active: true,
     created_at: '2024-01-15T08:00:00Z',
     updated_at: '2024-01-15T08:00:00Z'
@@ -56,9 +56,10 @@ export const mockUsers: User[] = [
 ];
 
 export const mockRoles: Role[] = [
-  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Acceso total y gestión de usuarios/roles', created_at: '2024-01-15T08:00:00Z' },
-  { id: 2, code: 'SECRETARY', name: 'Secretaría', description: 'Crea tipos, plantillas e instancias; carga/edita evidencias; exporta', created_at: '2024-01-15T08:00:00Z' },
-  { id: 3, code: 'REVIEWER', name: 'Revisor', description: 'Lectura/descarga y comentarios', created_at: '2024-01-15T08:00:00Z' }
+  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Ve y administra todo el sistema', created_at: '2024-01-15T08:00:00Z' },
+  { id: 2, code: 'GESTOR', name: 'Gestor', description: 'Crea tipos, plantillas y procesos; carga evidencias', created_at: '2024-01-15T08:00:00Z' },
+  { id: 3, code: 'LECTOR', name: 'Lector', description: 'Solo lectura y comentarios', created_at: '2024-01-15T08:00:00Z' },
+  { id: 4, code: 'AYUDANTE', name: 'Ayudante', description: 'Solo puede cargar archivos/evidencias', created_at: '2024-01-15T08:00:00Z' }
 ];
 
 export const mockProcessTypes: ProcessType[] = [
@@ -107,6 +108,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     description: 'Plantilla estándar para evaluación docente',
     version: 1,
     is_published: true,
+    is_active: true,
     created_by: 1,
     created_at: '2024-01-15T08:00:00Z'
   },
@@ -116,6 +118,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     description: 'Plantilla para acreditación',
     version: 1,
     is_published: true,
+    is_active: true,
     created_by: 1,
     created_at: '2024-01-15T08:00:00Z'
   },
@@ -125,6 +128,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     description: 'Plantilla para informes de gestión',
     version: 1,
     is_published: true,
+    is_active: true,
     created_by: 1,
     created_at: '2024-01-15T08:00:00Z'
   }
@@ -132,12 +136,12 @@ export const mockProcessTemplates: ProcessTemplate[] = [
 
 export const mockStepTemplates: StepTemplate[] = [
   { id: 1, template_id: 1, ord: 1, title: 'Carga de Evidencias', description: 'Cargar evidencias de desempeño docente', required: true, reviewer_role_id: 5, created_at: '2024-01-15T08:00:00Z' },
-  { id: 2, template_id: 1, ord: 2, title: 'Revisión por Director', description: 'Revisión y validación por director de carrera', required: true, reviewer_role_id: 4, created_at: '2024-01-15T08:00:00Z' },
-  { id: 3, template_id: 1, ord: 3, title: 'Aprobación Subdecano', description: 'Aprobación final por subdecano', required: true, reviewer_role_id: 3, created_at: '2024-01-15T08:00:00Z' },
+  { id: 2, template_id: 1, ord: 2, title: 'Validación por Director', description: 'Validación por director de carrera', required: true, reviewer_role_id: 4, created_at: '2024-01-15T08:00:00Z' },
+  { id: 3, template_id: 1, ord: 3, title: 'Verificación Subdecano', description: 'Verificación final por subdecano', required: true, reviewer_role_id: 3, created_at: '2024-01-15T08:00:00Z' },
   { id: 4, template_id: 2, ord: 1, title: 'Recopilación de Documentos', description: 'Reunir documentación para acreditación', required: true, reviewer_role_id: 5, created_at: '2024-01-15T08:00:00Z' },
   { id: 5, template_id: 2, ord: 2, title: 'Validación Técnica', description: 'Validación técnica de documentos', required: true, reviewer_role_id: 4, created_at: '2024-01-15T08:00:00Z' },
   { id: 6, template_id: 3, ord: 1, title: 'Elaboración de Informe', description: 'Redacción del informe mensual', required: true, reviewer_role_id: 5, created_at: '2024-01-15T08:00:00Z' },
-  { id: 7, template_id: 3, ord: 2, title: 'Revisión Decano', description: 'Revisión y aprobación por decano', required: true, reviewer_role_id: 2, created_at: '2024-01-15T08:00:00Z' }
+  { id: 7, template_id: 3, ord: 2, title: 'Validación Decano', description: 'Validación por decano', required: true, reviewer_role_id: 2, created_at: '2024-01-15T08:00:00Z' }
 ];
 
 export const mockProcessInstances: ProcessInstance[] = [

@@ -42,6 +42,7 @@ export interface ProcessTemplate {
   description: string;
   version: number;
   is_published: boolean;
+  is_active?: boolean; // Added to mark templates as Active or Obsolete
   created_by: number;
   created_at: string;
   updated_at?: string; // Added

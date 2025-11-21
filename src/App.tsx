@@ -1,23 +1,20 @@
 import { useState } from 'react';
-import { SidebarProvider } from './components/ui/sidebar';
-import { Toaster } from './components/ui/sonner';
+import { Dashboard } from './components/Dashboard';
+import { ProcessListSimple } from './components/ProcessListSimple';
+import { ProcessDetailSimple } from './components/ProcessDetailSimple';
+import { AdminPanel } from './components/AdminPanel';
+import { CompliancePanelSimple } from './components/CompliancePanelSimple';
+import { TemplateManagerSimple } from './components/TemplateManagerSimple';
+import { ProcessTypesList } from './components/ProcessTypesList';
 import { Login } from './components/Login';
 import { AppSidebar } from './components/AppSidebar';
-import { Dashboard } from './components/Dashboard';
-import { ProcessList } from './components/ProcessList';
-import { ProcessDetail } from './components/ProcessDetail';
-import { AdminPanel } from './components/AdminPanel';
-import { CompliancePanel } from './components/CompliancePanel';
-import { TagManager } from './components/TagManager';
-import { TemplateManager } from './components/TemplateManager';
 import { User } from './types';
 import { mockUsers } from './data/mockData';
-import { Bell } from 'lucide-react';
-import { Badge } from './components/ui/badge';
-import { Button } from './components/ui/button';
 import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
+import { Toaster } from './components/ui/sonner';
+import { SidebarProvider } from './components/ui/sidebar';
 
-type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'admin' | 'compliance' | 'tags' | 'templates';
+type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'admin' | 'compliance' | 'templates' | 'process-types';
 
 interface ViewData {
   processId?: number;
@@ -38,7 +35,7 @@ export default function App() {
       setCurrentUser(user);
       setIsAuthenticated(true);
     } else {
-      alert('Credenciales inválidas. Use: renata.aviles@fiec.edu.ec / password');
+      alert('Credenciales inválidas. Use: renata.avila@fiec.edu.ec / password');
     }
   };
 
@@ -68,10 +65,14 @@ export default function App() {
       case 'dashboard':
         return <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'processes':
-        return <ProcessList currentUser={currentUser} onViewChange={handleViewChange} />;
+        return <ProcessListSimple currentUser={currentUser} onViewChange={handleViewChange} />;
+      case 'templates':
+        return <TemplateManagerSimple currentUser={currentUser} />;
+      case 'process-types':
+        return <ProcessTypesList currentUser={currentUser} onViewChange={handleViewChange} />;
       case 'process-detail':
         return viewData.processId ? (
-          <ProcessDetail
+          <ProcessDetailSimple
             processId={viewData.processId}
             currentUser={currentUser}
             onBack={() => handleViewChange('processes')}
@@ -82,11 +83,7 @@ export default function App() {
       case 'admin':
         return <AdminPanel currentUser={currentUser} />;
       case 'compliance':
-        return <CompliancePanel currentUser={currentUser} onViewChange={handleViewChange} />;
-      case 'tags':
-        return <TagManager currentUser={currentUser} />;
-      case 'templates':
-        return <TemplateManager currentUser={currentUser} />;
+        return <CompliancePanelSimple currentUser={currentUser} onViewChange={handleViewChange} />;
       default:
         return <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />;
     }

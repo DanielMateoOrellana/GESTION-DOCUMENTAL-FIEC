@@ -1,324 +1,422 @@
-import { ProcessInstance, User, Notification } from "../types";
-import {
+import { useState } from 'react';
+import { User, ProcessInstance } from '../types';
+import { 
+  mockProcessInstances, 
+  mockProcessTypes, 
+  mockUsers, 
+  mockStepInstances,
   getProcessTypeById,
-  getUserById,
-  getProgressForProcess,
-  mockProcessInstances,
-  mockNotifications,
-} from "../data/mockData";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Progress } from "./ui/progress";
-import { ProcessInstanceCreator } from "./ProcessInstanceCreator";
-import {
-  FolderKanban,
-  Plus,
-  Calendar,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
+  getUserById
+} from '../data/mockData';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Checkbox } from './ui/checkbox';
+import { 
+  Clock, 
+  Search, 
   FileText,
-} from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+  Calendar,
+  User as UserIcon,
+  AlertCircle
+} from 'lucide-react';
 
 interface DashboardProps {
   currentUser: User;
   onViewChange: (view: string, data?: any) => void;
 }
 
-export function Dashboard({
-  currentUser,
-  onViewChange,
-}: DashboardProps) {
-  const activeProcesses = mockProcessInstances.filter(
-    (p) =>
-      p.state !== "CLOSED" &&
-      p.responsible_user_id === currentUser.id,
-  );
+interface TaskItem {
+  id: string;
+  type: 'process' | 'step';
+  processId: number;
+  stepId?: number;
+  title: string;
+  processTitle: string;
+  processType: string;
+  responsible: string;
+  dueDate: Date;
+  status: string;
+  overdue: boolean;
+}
 
-  const unreadNotifications = mockNotifications.filter(
-    (n) => n.user_id === currentUser.id && !n.is_read,
-  );
+export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [responsibleFilter, setResponsibleFilter] = useState('all');
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
-  const processStats = {
-    total: activeProcesses.length,
-    inProgress: activeProcesses.filter(
-      (p) => p.state === "IN_PROGRESS",
-    ).length,
-    pending: activeProcesses.filter(
-      (p) => p.state === "PENDING_APPROVAL",
-    ).length,
-    draft: activeProcesses.filter((p) => p.state === "DRAFT")
-      .length,
-  };
+  // Crear lista de tareas desde procesos y pasos con fechas límite
+  const createTaskList = (): TaskItem[] => {
+    const tasks: TaskItem[] = [];
+    const now = new Date();
 
-  const chartData = mockProcessInstances
-    .filter((p) => p.responsible_user_id === currentUser.id)
-    .reduce(
-      (acc, p) => {
-        const status = p.state;
-        const existing = acc.find(
-          (item) => item.name === status,
-        );
-        if (existing) {
-          existing.value++;
-        } else {
-          acc.push({ name: status, value: 1 });
+    mockProcessInstances.forEach(process => {
+      // Solo mostrar procesos activos (no completados/cerrados)
+      if (process.state === 'CLOSED' || process.state === 'APPROVED') return;
+
+      const processType = getProcessTypeById(process.process_type_id);
+      const responsible = getUserById(process.responsible_user_id);
+
+      // Agregar tarea de proceso si tiene fecha límite
+      if (process.due_at) {
+        const dueDate = new Date(process.due_at);
+        tasks.push({
+          id: `process-${process.id}`,
+          type: 'process',
+          processId: process.id,
+          title: process.title || processType?.name || 'Sin título',
+          processTitle: process.title || processType?.name || 'Sin título',
+          processType: processType?.name || 'Sin tipo',
+          responsible: responsible?.full_name || 'Sin asignar',
+          dueDate,
+          status: process.state,
+          overdue: dueDate < now
+        });
+      }
+
+      // Agregar tareas de pasos si tienen fecha límite
+      const steps = mockStepInstances.filter(s => s.process_instance_id === process.id);
+      steps.forEach(step => {
+        if (step.due_at && step.status !== 'APPROVED' && step.status !== 'CARGADO') {
+          const dueDate = new Date(step.due_at);
+          tasks.push({
+            id: `step-${step.id}`,
+            type: 'step',
+            processId: process.id,
+            stepId: step.id,
+            title: `${step.title} - ${process.title || processType?.name}`,
+            processTitle: process.title || processType?.name || 'Sin título',
+            processType: processType?.name || 'Sin tipo',
+            responsible: responsible?.full_name || 'Sin asignar',
+            dueDate,
+            status: step.status,
+            overdue: dueDate < now
+          });
         }
-        return acc;
-      },
-      [] as { name: string; value: number }[],
+      });
+    });
+
+    return tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  };
+
+  const allTasks = createTaskList();
+
+  // Filtrar tareas
+  const filteredTasks = allTasks.filter(task => {
+    // Búsqueda de texto
+    if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+
+    // Filtro de año
+    const process = mockProcessInstances.find(p => p.id === task.processId);
+    if (yearFilter !== 'all' && process?.year.toString() !== yearFilter) {
+      return false;
+    }
+
+    // Filtro de tipo de proceso
+    if (typeFilter !== 'all' && task.processType !== typeFilter) {
+      return false;
+    }
+
+    // Filtro de estado
+    const simpleStatus = task.status === 'APPROVED' || task.status === 'CLOSED' ? 'Completado' : 'Pendiente';
+    if (statusFilter !== 'all' && simpleStatus !== statusFilter) {
+      return false;
+    }
+
+    // Filtro de responsable
+    if (responsibleFilter !== 'all' && task.responsible !== responsibleFilter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Agrupar tareas por proximidad temporal
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const thisWeekEnd = new Date(today);
+  thisWeekEnd.setDate(thisWeekEnd.getDate() + 7);
+
+  const groupedTasks = {
+    overdue: filteredTasks.filter(t => t.overdue),
+    today: filteredTasks.filter(t => !t.overdue && t.dueDate >= today && t.dueDate < tomorrow),
+    tomorrow: filteredTasks.filter(t => t.dueDate >= tomorrow && t.dueDate < new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)),
+    thisWeek: filteredTasks.filter(t => {
+      const tomorrowEnd = new Date(tomorrow);
+      tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+      return t.dueDate >= tomorrowEnd && t.dueDate < thisWeekEnd;
+    }),
+    later: filteredTasks.filter(t => t.dueDate >= thisWeekEnd)
+  };
+
+  const handleSelectTask = (taskId: string) => {
+    setSelectedTasks(prev => 
+      prev.includes(taskId) 
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
     );
-
-  const COLORS = [
-    "#002E5D",
-    "#0072CE",
-    "#00A8E8",
-    "#64748b",
-    "#10b981",
-  ];
-
-  const statusLabels: Record<string, string> = {
-    DRAFT: "Borrador",
-    IN_PROGRESS: "En Progreso",
-    PENDING_APPROVAL: "Pendiente",
-    APPROVED: "Aprobado",
-    REJECTED: "Rechazado",
-    CLOSED: "Cerrado",
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      DRAFT: "bg-gray-100 text-gray-800",
-      IN_PROGRESS: "bg-blue-100 text-blue-800",
-      PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
-      APPROVED: "bg-green-100 text-green-800",
-      REJECTED: "bg-red-100 text-red-800",
-      CLOSED: "bg-gray-100 text-gray-800",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800";
+  const handleSelectAll = () => {
+    if (selectedTasks.length === filteredTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(filteredTasks.map(t => t.id));
+    }
   };
+
+  const handleTaskClick = (task: TaskItem) => {
+    onViewChange('process-detail', { processId: task.processId });
+  };
+
+  const formatDueDate = (date: Date) => {
+    return date.toLocaleDateString('es-ES', { 
+      day: 'numeric', 
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const simpleStatus = status === 'APPROVED' || status === 'CLOSED' ? 'Completado' : 'Pendiente';
+    const color = simpleStatus === 'Completado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+    return <Badge className={color}>{simpleStatus}</Badge>;
+  };
+
+  const renderTaskGroup = (title: string, tasks: TaskItem[], icon: React.ReactNode, colorClass: string) => {
+    if (tasks.length === 0) return null;
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          {icon}
+          <h3 className={colorClass}>{title} ({tasks.length})</h3>
+        </div>
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={tasks.every(t => selectedTasks.includes(t.id))}
+                    onCheckedChange={() => {
+                      const taskIds = tasks.map(t => t.id);
+                      if (tasks.every(t => selectedTasks.includes(t.id))) {
+                        setSelectedTasks(prev => prev.filter(id => !taskIds.includes(id)));
+                      } else {
+                        setSelectedTasks(prev => [...new Set([...prev, ...taskIds])]);
+                      }
+                    }}
+                  />
+                </TableHead>
+                <TableHead>Tarea</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Responsable</TableHead>
+                <TableHead>Vence</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map(task => (
+                <TableRow 
+                  key={task.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, input')) return;
+                    handleTaskClick(task);
+                  }}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedTasks.includes(task.id)}
+                      onCheckedChange={() => handleSelectTask(task.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <div>{task.title}</div>
+                        {task.type === 'step' && (
+                          <div className="text-xs text-muted-foreground">Paso de proceso</div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{task.processType}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <UserIcon className="w-3 h-3 text-muted-foreground" />
+                      {task.responsible}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-muted-foreground" />
+                      {formatDueDate(task.dueDate)}
+                    </div>
+                  </TableCell>
+                  <TableCell>{getStatusBadge(task.status)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  };
+
+  const years = ['all', ...Array.from(new Set(mockProcessInstances.map(p => p.year)))];
+  const types = ['all', ...Array.from(new Set(mockProcessTypes.map(t => t.name)))];
+  const responsibles = ['all', ...Array.from(new Set(mockUsers.map(u => u.full_name)))];
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1>
-            Bienvenido, {currentUser.full_name.split(" ")[0]}
-          </h1>
+          <h1>Tablero de Tareas</h1>
           <p className="text-muted-foreground">
-            Dashboard - Sistema de Gestión Documental FIEC
+            Vista general de procesos y pasos próximos a vencer
           </p>
         </div>
-        <Button
-          onClick={() =>
-            onViewChange("processes", { action: "new" })
-          }
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Proceso
-        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">
-              Procesos Activos
-            </CardTitle>
-            <FolderKanban className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{processStats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Procesos asignados a ti
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">
-              En Progreso
-            </CardTitle>
-            <Clock className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">
-              {processStats.inProgress}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Procesos en desarrollo
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">
-              Pendientes
-            </CardTitle>
-            <AlertCircle className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">
-              {processStats.pending}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Requieren aprobación
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">
-              Notificaciones
-            </CardTitle>
-            <AlertCircle className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">
-              {unreadNotifications.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Notificaciones sin leer
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Process Progress Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribución de Procesos</CardTitle>
-            <CardDescription>Por estado actual</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${statusLabels[name] || name}: ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Active Processes List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Procesos Activos</CardTitle>
-            <CardDescription>
-              Procesos que requieren tu atención
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeProcesses.slice(0, 4).map((process) => {
-              const processType = getProcessTypeById(
-                process.process_type_id,
-              );
-              const progress = getProgressForProcess(
-                process.id,
-              );
-
-              return (
-                <div
-                  key={process.id}
-                  className="space-y-2 pb-4 border-b last:border-b-0 last:pb-0 cursor-pointer hover:bg-accent/50 -mx-4 px-4 py-2 rounded-lg transition-colors"
-                  onClick={() =>
-                    onViewChange("process-detail", {
-                      processId: process.id,
-                    })
-                  }
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-primary" />
-                        <span className="text-sm">
-                          {process.title || processType?.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        <span>
-                          {process.year} - Mes {process.month}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge
-                      className={getStatusColor(process.state)}
-                    >
-                      {statusLabels[process.state] ||
-                        process.state}
-                    </Badge>
-                  </div>
-                  {progress && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          Progreso
-                        </span>
-                        <span>
-                          {progress.progress_percent}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={progress.progress_percent}
-                        className="h-2"
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {activeProcesses.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <FolderKanban className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No tienes procesos activos</p>
+      {/* Filtros */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="md:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Buscar tareas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
+            </div>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los años</SelectItem>
+                {years.filter(y => y !== 'all').map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {types.filter(t => t !== 'all').map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="Pendiente">Pendiente</SelectItem>
+                <SelectItem value="Completado">Completado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Responsable" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {responsibles.filter(r => r !== 'all').map(resp => (
+                  <SelectItem key={resp} value={resp}>{resp}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Acciones masivas */}
+      {selectedTasks.length > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">{selectedTasks.length} tarea(s) seleccionada(s)</span>
+              <Button variant="outline" size="sm">
+                Marcar como completadas
+              </Button>
+            </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Grupos de tareas */}
+      <div>
+        {renderTaskGroup(
+          'Vencidas',
+          groupedTasks.overdue,
+          <AlertCircle className="w-5 h-5 text-red-600" />,
+          'text-red-600'
+        )}
+        
+        {renderTaskGroup(
+          'Hoy',
+          groupedTasks.today,
+          <Clock className="w-5 h-5 text-orange-600" />,
+          'text-orange-600'
+        )}
+        
+        {renderTaskGroup(
+          'Mañana',
+          groupedTasks.tomorrow,
+          <Calendar className="w-5 h-5 text-yellow-600" />,
+          'text-yellow-600'
+        )}
+        
+        {renderTaskGroup(
+          'Esta semana',
+          groupedTasks.thisWeek,
+          <Calendar className="w-5 h-5 text-blue-600" />,
+          'text-blue-600'
+        )}
+        
+        {renderTaskGroup(
+          'Próximos días',
+          groupedTasks.later,
+          <Calendar className="w-5 h-5 text-gray-600" />,
+          'text-gray-600'
+        )}
+
+        {filteredTasks.length === 0 && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay tareas pendientes</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

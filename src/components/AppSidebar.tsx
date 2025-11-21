@@ -8,6 +8,7 @@ import {
   BarChart3,
   TrendingUp,
   TagIcon,
+  List,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,12 +41,13 @@ export function AppSidebar({
   const menuItems = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Tablero",
       icon: LayoutDashboard,
     },
     { id: "processes", label: "Procesos", icon: FolderKanban },
-    { id: "tags", label: "Etiquetas", icon: TagIcon },
-    { id: "compliance", label: "Cumplimiento", icon: TrendingUp },
+    { id: "templates", label: "Plantillas", icon: FileText },
+    { id: "process-types", label: "Tipos de proceso", icon: List },
+    { id: "compliance", label: "Panel de cumplimiento", icon: TrendingUp },
     { id: "admin", label: "Administración", icon: Settings },
   ];
 
