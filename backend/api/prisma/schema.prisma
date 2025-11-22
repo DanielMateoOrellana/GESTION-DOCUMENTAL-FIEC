@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ProcessCategory {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique      // Ej: "Evaluación Docente", "Gestión Académica"
+  description  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  processTypes ProcessType[]
+}
+
+model ProcessType {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String
+  isActive    Boolean         @default(true)
+
+  // Relación con categoría
+  categoryId  Int
+  category    ProcessCategory @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
