@@ -1,15 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
 import { Badge } from './ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { Checkbox } from './ui/checkbox';
 import { Plus, Edit, Eye } from 'lucide-react';
-import { ProcessTemplate, User } from '../types';
-import { mockProcessTemplates, mockStepTemplates, mockProcessTypes, getProcessTypeById } from '../data/mockData';
+import type { User } from '../types';
+import { mockProcessTypes, getProcessTypeById } from '../data/mockData';
 import { toast } from 'sonner@2.0.3';
 import { CreateTemplateModal } from './CreateTemplateModal';
+
+import {
+  fetchProcessTemplates,
+  type ProcessTemplate,
+} from '../api/processTemplates';
 
 interface TemplateManagerSimpleProps {
   currentUser: User;
@@ -21,11 +39,37 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const filteredTemplates = mockProcessTemplates.filter(template => {
-    const matchesType = filterType === 'all' || template.process_type_id.toString() === filterType;
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && template.is_active) ||
-      (filterStatus === 'obsolete' && !template.is_active);
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadTemplates = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchProcessTemplates();
+      setTemplates(data);
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al cargar plantillas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredTemplates = templates.filter((template) => {
+    const matchesType =
+      filterType === 'all' ||
+      template.processTypeId.toString() === filterType;
+
+    const matchesStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'active' && template.isActive) ||
+      (filterStatus === 'obsolete' && !template.isActive);
+
     return matchesType && matchesStatus;
   });
 
@@ -33,13 +77,13 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
     if (selectedItems.length === filteredTemplates.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(filteredTemplates.map(t => t.id));
+      setSelectedItems(filteredTemplates.map((t) => t.id));
     }
   };
 
   const handleSelectItem = (id: number) => {
     if (selectedItems.includes(id)) {
-      setSelectedItems(selectedItems.filter(i => i !== id));
+      setSelectedItems(selectedItems.filter((i) => i !== id));
     } else {
       setSelectedItems([...selectedItems, id]);
     }
@@ -54,7 +98,8 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
   };
 
   const getStepCount = (templateId: number) => {
-    return mockStepTemplates.filter(s => s.template_id === templateId).length;
+    const tpl = templates.find((t) => t.id === templateId);
+    return tpl?.steps?.length ?? 0;
   };
 
   return (
@@ -62,7 +107,9 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
       <div className="flex items-center justify-between">
         <div>
           <h1>Plantillas</h1>
-          <p className="text-muted-foreground">Gestión de plantillas de procesos</p>
+          <p className="text-muted-foreground">
+            Gestión de plantillas de procesos
+          </p>
         </div>
         <div className="flex gap-2">
           {selectedItems.length > 0 && (
@@ -90,7 +137,7 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
-                {mockProcessTypes.map(type => (
+                {mockProcessTypes.map((type) => (
                   <SelectItem key={type.id} value={type.id.toString()}>
                     {type.name}
                   </SelectItem>
@@ -117,64 +164,86 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
           <CardTitle>Plantillas ({filteredTemplates.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedItems.length === filteredTemplates.length && filteredTemplates.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Tipo de proceso</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Pasos</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTemplates.map(template => {
-                const processType = getProcessTypeById(template.process_type_id);
-                const stepCount = getStepCount(template.id);
-
-                return (
-                  <TableRow key={template.id}>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedItems.includes(template.id)}
-                        onCheckedChange={() => handleSelectItem(template.id)}
-                      />
-                    </TableCell>
-                    <TableCell>{processType?.name} - Plantilla</TableCell>
-                    <TableCell className="max-w-md truncate">{template.description}</TableCell>
-                    <TableCell>{processType?.name}</TableCell>
-                    <TableCell>
-                      <Badge className={template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                        {template.is_active ? 'Activa' : 'Obsoleta'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{stepCount}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          {filteredTemplates.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No se encontraron plantillas</p>
+          {loading ? (
+            <div className="py-8 text-center text-muted-foreground">
+              Cargando plantillas...
             </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          selectedItems.length === filteredTemplates.length &&
+                          filteredTemplates.length > 0
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Tipo de proceso</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Pasos</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTemplates.map((template) => {
+                    const processType = getProcessTypeById(template.processTypeId);
+                    const stepCount = getStepCount(template.id);
+
+                    return (
+                      <TableRow key={template.id}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedItems.includes(template.id)}
+                            onCheckedChange={() => handleSelectItem(template.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {processType?.name ?? 'Sin tipo'} - Plantilla
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {template.description}
+                        </TableCell>
+                        <TableCell>{processType?.name ?? 'Sin tipo'}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              template.isActive
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }
+                          >
+                            {template.isActive ? 'Activa' : 'Obsoleta'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{stepCount}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {filteredTemplates.length === 0 && !loading && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No se encontraron plantillas</p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -182,7 +251,10 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
       {/* Modal de Creación de Plantilla */}
       <CreateTemplateModal
         open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={async () => {
+          setIsCreateModalOpen(false);
+          await loadTemplates();
+        }}
       />
     </div>
   );

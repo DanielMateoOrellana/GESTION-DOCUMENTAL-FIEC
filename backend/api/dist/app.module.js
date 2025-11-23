@@ -11,12 +11,14 @@ const common_1 = require("@nestjs/common");
 const prisma_module_1 = require("./prisma/prisma.module");
 const process_categories_module_1 = require("./process-categories/process-categories.module");
 const process_types_module_1 = require("./process-types/process-types.module");
+const process_templates_module_1 = require("./process-templates/process-templates.module");
+const process_instances_module_1 = require("./process-instances/process-instances.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, process_categories_module_1.ProcessCategoriesModule, process_types_module_1.ProcessTypesModule],
+        imports: [prisma_module_1.PrismaModule, process_categories_module_1.ProcessCategoriesModule, process_types_module_1.ProcessTypesModule, process_templates_module_1.ProcessTemplatesModule, process_instances_module_1.ProcessInstancesModule],
         controllers: [],
         providers: [],
     })

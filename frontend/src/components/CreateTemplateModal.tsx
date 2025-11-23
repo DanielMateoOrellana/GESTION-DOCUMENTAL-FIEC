@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
-import { mockProcessTypes, mockRoles } from '../data/mockData';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+
+import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
+import {
+  createProcessTemplate,
+  type CreateProcessTemplateInput,
+  type CreateTemplateStepInput,
+} from '../api/processTemplates';
 
 interface CreateTemplateModalProps {
   open: boolean;
@@ -31,8 +37,30 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
   const [templateDescription, setTemplateDescription] = useState('');
   const [processTypeId, setProcessTypeId] = useState('');
   const [steps, setSteps] = useState<TemplateStep[]>([
-    { id: '1', title: '', description: '', required: true, ord: 1 }
+    { id: '1', title: '', description: '', required: true, ord: 1 },
   ]);
+
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(false);
+
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        setLoadingTypes(true);
+        const data = await fetchProcessTypes();
+        setProcessTypes(data);
+      } catch (error) {
+        console.error(error);
+        toast.error('Error al cargar tipos de proceso');
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    if (open) {
+      loadTypes();
+    }
+  }, [open]);
 
   const handleAddStep = () => {
     const newStep: TemplateStep = {
@@ -40,7 +68,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
       title: '',
       description: '',
       required: true,
-      ord: steps.length + 1
+      ord: steps.length + 1,
     };
     setSteps([...steps, newStep]);
   };
@@ -50,19 +78,18 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
       toast.error('Debe haber al menos un paso');
       return;
     }
-    const filtered = steps.filter(s => s.id !== id);
-    // Reordenar
+    const filtered = steps.filter((s) => s.id !== id);
     const reordered = filtered.map((step, index) => ({
       ...step,
-      ord: index + 1
+      ord: index + 1,
     }));
     setSteps(reordered);
   };
 
   const handleUpdateStep = (id: string, field: keyof TemplateStep, value: any) => {
-    setSteps(steps.map(step => 
-      step.id === id ? { ...step, [field]: value } : step
-    ));
+    setSteps(
+      steps.map((step) => (step.id === id ? { ...step, [field]: value } : step)),
+    );
   };
 
   const handleMoveStep = (index: number, direction: 'up' | 'down') => {
@@ -71,19 +98,20 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
 
     const newSteps = [...steps];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
-    
-    // Actualizar orden
+    [newSteps[index], newSteps[targetIndex]] = [
+      newSteps[targetIndex],
+      newSteps[index],
+    ];
+
     const reordered = newSteps.map((step, idx) => ({
       ...step,
-      ord: idx + 1
+      ord: idx + 1,
     }));
     setSteps(reordered);
   };
 
   const handleNext = () => {
     if (currentStep === 1) {
-      // Validar paso 1
       if (!templateName.trim()) {
         toast.error('Ingrese un nombre para la plantilla');
         return;
@@ -100,36 +128,51 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
     setCurrentStep(1);
   };
 
-  const handleCreate = () => {
-    // Validar pasos
-    const invalidSteps = steps.filter(s => !s.title.trim());
+  const handleCreate = async () => {
+    const invalidSteps = steps.filter((s) => !s.title.trim());
     if (invalidSteps.length > 0) {
       toast.error('Todos los pasos deben tener un nombre');
       return;
     }
 
-    // Crear plantilla
-    const template = {
-      id: Date.now(),
-      name: templateName,
-      description: templateDescription,
-      process_type_id: parseInt(processTypeId),
-      is_active: true,
-      created_at: new Date().toISOString()
-    };
+    if (!templateName.trim()) {
+      toast.error('Ingrese un nombre para la plantilla');
+      return;
+    }
 
-    const templateSteps = steps.map(step => ({
-      ...step,
-      template_id: template.id,
-      reviewer_role_id: 5, // Default
-      created_at: new Date().toISOString()
+    if (!processTypeId) {
+      toast.error('Seleccione un tipo de proceso');
+      return;
+    }
+
+    const stepsPayload: CreateTemplateStepInput[] = steps.map((step) => ({
+      order: step.ord,
+      name: step.title,
+      description: step.description,
+      isMandatory: step.required ?? true,
     }));
 
-    console.log('Nueva plantilla creada:', template);
-    console.log('Pasos de la plantilla:', templateSteps);
-    
-    toast.success(`Plantilla "${templateName}" creada exitosamente con ${steps.length} pasos`);
-    handleClose();
+    const payload: CreateProcessTemplateInput = {
+      name: templateName,
+      description: templateDescription,
+      processTypeId: parseInt(processTypeId, 10),
+      isActive: true,
+      steps: stepsPayload,
+    };
+
+    try {
+      const created = await createProcessTemplate(payload);
+      console.log('Plantilla creada en backend:', created);
+      toast.success(
+        `Plantilla "${created.name}" creada exitosamente con ${
+          created.steps?.length ?? steps.length
+        } pasos`,
+      );
+      handleClose();
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al crear la plantilla');
+    }
   };
 
   const handleClose = () => {
@@ -141,29 +184,41 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
     onClose();
   };
 
-  const selectedProcessType = mockProcessTypes.find(pt => pt.id.toString() === processTypeId);
+  const selectedProcessType = processTypes.find(
+    (pt) => pt.id.toString() === processTypeId,
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {currentStep === 1 ? 'Nueva Plantilla - Información General' : 'Nueva Plantilla - Configurar Pasos'}
+            {currentStep === 1
+              ? 'Nueva Plantilla - Información General'
+              : 'Nueva Plantilla - Configurar Pasos'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Indicador de pasos */}
           <div className="flex items-center justify-center gap-2">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-              currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted'
-            }`}>
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                currentStep === 1
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted'
+              }`}
+            >
               1
             </div>
             <div className="w-12 h-0.5 bg-muted" />
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-              currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted'
-            }`}>
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                currentStep === 2
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted'
+              }`}
+            >
               2
             </div>
           </div>
@@ -196,14 +251,22 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                 <Label htmlFor="processType">Tipo de proceso *</Label>
                 <Select value={processTypeId} onValueChange={setProcessTypeId}>
                   <SelectTrigger id="processType">
-                    <SelectValue placeholder="Seleccione un tipo de proceso" />
+                    <SelectValue
+                      placeholder={
+                        loadingTypes
+                          ? 'Cargando tipos...'
+                          : 'Seleccione un tipo de proceso'
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockProcessTypes.map(type => (
+                    {processTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id.toString()}>
                         <div>
                           <div>{type.name}</div>
-                          <div className="text-xs text-muted-foreground">{type.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {type.description}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
@@ -219,17 +282,23 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div>
-                      <span className="text-xs text-muted-foreground">Nombre:</span>
+                      <span className="text-xs text-muted-foreground">
+                        Nombre:
+                      </span>
                       <p>{templateName}</p>
                     </div>
                     {templateDescription && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Descripción:</span>
+                        <span className="text-xs text-muted-foreground">
+                          Descripción:
+                        </span>
                         <p className="text-sm">{templateDescription}</p>
                       </div>
                     )}
                     <div>
-                      <span className="text-xs text-muted-foreground">Tipo:</span>
+                      <span className="text-xs text-muted-foreground">
+                        Tipo:
+                      </span>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge>{selectedProcessType?.name}</Badge>
                       </div>
@@ -291,7 +360,13 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                             <Input
                               placeholder="Ej: Carga de evidencias"
                               value={step.title}
-                              onChange={(e) => handleUpdateStep(step.id, 'title', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateStep(
+                                  step.id,
+                                  'title',
+                                  e.target.value,
+                                )
+                              }
                             />
                           </div>
 
@@ -300,7 +375,13 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                             <Textarea
                               placeholder="Describe qué debe hacerse en este paso..."
                               value={step.description}
-                              onChange={(e) => handleUpdateStep(step.id, 'description', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateStep(
+                                  step.id,
+                                  'description',
+                                  e.target.value,
+                                )
+                              }
                               rows={2}
                             />
                           </div>
@@ -309,11 +390,18 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                             <Checkbox
                               id={`required-${step.id}`}
                               checked={step.required}
-                              onCheckedChange={(checked) => 
-                                handleUpdateStep(step.id, 'required', checked)
+                              onCheckedChange={(checked) =>
+                                handleUpdateStep(
+                                  step.id,
+                                  'required',
+                                  Boolean(checked),
+                                )
                               }
                             />
-                            <Label htmlFor={`required-${step.id}`} className="cursor-pointer">
+                            <Label
+                              htmlFor={`required-${step.id}`}
+                              className="cursor-pointer"
+                            >
                               Paso requerido
                             </Label>
                           </div>
@@ -341,16 +429,26 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Total de pasos:</span>
+                      <span className="text-muted-foreground">
+                        Total de pasos:
+                      </span>
                       <span className="ml-2 font-medium">{steps.length}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Pasos requeridos:</span>
-                      <span className="ml-2 font-medium">{steps.filter(s => s.required).length}</span>
+                      <span className="text-muted-foreground">
+                        Pasos requeridos:
+                      </span>
+                      <span className="ml-2 font-medium">
+                        {steps.filter((s) => s.required).length}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Pasos opcionales:</span>
-                      <span className="ml-2 font-medium">{steps.filter(s => !s.required).length}</span>
+                      <span className="text-muted-foreground">
+                        Pasos opcionales:
+                      </span>
+                      <span className="ml-2 font-medium">
+                        {steps.filter((s) => !s.required).length}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -370,13 +468,9 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                 </Button>
               )}
               {currentStep === 1 ? (
-                <Button onClick={handleNext}>
-                  Siguiente
-                </Button>
+                <Button onClick={handleNext}>Siguiente</Button>
               ) : (
-                <Button onClick={handleCreate}>
-                  Crear plantilla
-                </Button>
+                <Button onClick={handleCreate}>Crear plantilla</Button>
               )}
             </div>
           </div>

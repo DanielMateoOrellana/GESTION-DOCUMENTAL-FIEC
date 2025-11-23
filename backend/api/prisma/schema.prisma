@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum EstadoProceso {
+  PENDIENTE
+  COMPLETADO
+}
+
+enum EstadoPaso {
+  PENDIENTE
+  COMPLETADO
+}
+
+
 model ProcessCategory {
   id           Int           @id @default(autoincrement())
   name         String        @unique      // Ej: "Evaluación Docente", "Gestión Académica"
@@ -30,4 +41,97 @@ model ProcessType {
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  templates         ProcessTemplate[]
+  processInstances  ProcessInstance[]   // <--- agrega esta línea
+}
+
+
+model ProcessTemplate {
+  id            Int                  @id @default(autoincrement())
+  name          String
+  description   String
+  isActive      Boolean              @default(true)
+
+  processType   ProcessType          @relation(fields: [processTypeId], references: [id])
+  processTypeId Int
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  steps         ProcessTemplateStep[]
+  // NUEVO: instancias creadas a partir de esta plantilla
+  processInstances ProcessInstance[]
+}
+
+model ProcessTemplateStep {
+  id               Int             @id @default(autoincrement())
+  template         ProcessTemplate @relation(fields: [templateId], references: [id])
+  templateId       Int
+
+  order            Int             // 1, 2, 3...
+  name             String
+  description      String?
+
+  responsibleRole  String?         // p.ej. "PROFESOR", "SECRETARIA", "DECANO"
+  dueDaysFromStart Int?            // días después del inicio del proceso
+  isMandatory      Boolean         @default(true)
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // NUEVO: pasos concretos de procesos reales
+  stepInstances    StepInstance[]
+}
+
+model ProcessInstance {
+  id               Int            @id @default(autoincrement())
+  title            String         // nombre visible del proceso, ej: "Evaluación Docente 2025-I"
+
+  // Estado en español
+  estado           EstadoProceso  @default(PENDIENTE)
+
+  // De qué tipo y plantilla viene
+  processTypeId    Int
+  processType      ProcessType    @relation(fields: [processTypeId], references: [id])
+
+  templateId       Int
+  template         ProcessTemplate @relation(fields: [templateId], references: [id])
+
+  // Responsable del proceso (luego lo relacionamos con User si quieres)
+  responsibleUserId Int?
+
+  year             Int?
+  month            Int?
+  comment          String?
+  dueAt            DateTime?      // fecha límite global del proceso
+  completedAt      DateTime?      // cuándo se completó todo
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Pasos concretos del proceso
+  steps            StepInstance[]
+}
+
+model StepInstance {
+  id                Int                @id @default(autoincrement())
+  title             String             // nombre del paso en esta instancia (copiado de la plantilla)
+
+  // Estado en español
+  estado            EstadoPaso         @default(PENDIENTE)
+
+  comment           String?            // observación del usuario si quieres
+
+  processInstanceId Int
+  processInstance   ProcessInstance    @relation(fields: [processInstanceId], references: [id])
+
+  templateStepId    Int
+  templateStep      ProcessTemplateStep @relation(fields: [templateStepId], references: [id])
+
+  dueAt             DateTime?         // fecha límite de este paso
+  completedAt       DateTime?         // cuándo se subió el archivo y se dio por completado
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
