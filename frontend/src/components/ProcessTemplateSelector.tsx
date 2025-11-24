@@ -1,13 +1,23 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ProcessType, ProcessTemplate, StepTemplate } from '../types';
-import { mockProcessTypes, mockProcessTemplates, mockStepTemplates } from '../data/mockData';
 import { FileText, CheckCircle, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+
+import type { ProcessType } from '../api/processTypes';
+import { fetchProcessTypes } from '../api/processTypes';
+import type { ProcessTemplate } from '../api/processTemplates';
+import { fetchProcessTemplates } from '../api/processTemplates';
 
 interface ProcessTemplateSelectorProps {
   open: boolean;
@@ -15,33 +25,58 @@ interface ProcessTemplateSelectorProps {
   onCreateProcess: (processTypeId: number, templateId: number) => void;
 }
 
-export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: ProcessTemplateSelectorProps) {
+export function ProcessTemplateSelector({
+  open,
+  onClose,
+  onCreateProcess,
+}: ProcessTemplateSelectorProps) {
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const processTypes = mockProcessTypes.filter(pt => pt.active);
+  useEffect(() => {
+    if (!open) return;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [types, templatesFromApi] = await Promise.all([
+          fetchProcessTypes(),
+          fetchProcessTemplates(),
+        ]);
+        setProcessTypes(types.filter((t) => t.isActive));
+        setTemplates(templatesFromApi);
+      } catch (error) {
+        console.error(error);
+        toast.error('Error al cargar tipos de proceso o plantillas');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [open]);
 
   const getTemplatesForType = (typeId: number): ProcessTemplate[] => {
-    return mockProcessTemplates.filter(t => t.process_type_id === typeId && t.is_published);
+    return templates.filter((t) => t.processTypeId === typeId && t.isActive);
   };
 
-  const getStepsForTemplate = (templateId: number): StepTemplate[] => {
-    return mockStepTemplates
-      .filter(s => s.template_id === templateId)
-      .sort((a, b) => a.ord - b.ord);
-  };
+  const selectedType = selectedTypeId
+    ? processTypes.find((pt) => pt.id === selectedTypeId)
+    : null;
 
-  const selectedType = selectedTypeId ? processTypes.find(pt => pt.id === selectedTypeId) : null;
   const availableTemplates = selectedTypeId ? getTemplatesForType(selectedTypeId) : [];
-  const selectedTemplate = selectedTemplateId 
-    ? mockProcessTemplates.find(t => t.id === selectedTemplateId) 
+
+  const selectedTemplate = selectedTemplateId
+    ? availableTemplates.find((t) => t.id === selectedTemplateId)
     : availableTemplates[0];
-  const templateSteps = selectedTemplate ? getStepsForTemplate(selectedTemplate.id) : [];
 
   const handleTypeSelect = (typeId: number) => {
     setSelectedTypeId(typeId);
-    const templates = getTemplatesForType(typeId);
-    setSelectedTemplateId(templates.length > 0 ? templates[0].id : null);
+    const t = getTemplatesForType(typeId);
+    setSelectedTemplateId(t.length > 0 ? t[0].id : null);
   };
 
   const handleCreateProcess = () => {
@@ -74,12 +109,12 @@ export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: Proc
           <div>
             <h3 className="mb-3">Paso 1: Seleccione el Tipo de Proceso</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {processTypes.map(type => {
-                const templates = getTemplatesForType(type.id);
+              {processTypes.map((type) => {
+                const relatedTemplates = getTemplatesForType(type.id);
                 const isSelected = selectedTypeId === type.id;
-                
+
                 return (
-                  <Card 
+                  <Card
                     key={type.id}
                     className={`cursor-pointer transition-all hover:shadow-md ${
                       isSelected ? 'ring-2 ring-primary' : ''
@@ -102,14 +137,17 @@ export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: Proc
                     <CardContent>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <Badge variant="outline">
-                          {templates.length} {templates.length === 1 ? 'plantilla' : 'plantillas'}
+                          {relatedTemplates.length}{' '}
+                          {relatedTemplates.length === 1 ? 'plantilla' : 'plantillas'}
                         </Badge>
-                        <Badge variant="secondary">{type.code}</Badge>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
+              {loading && processTypes.length === 0 && (
+                <p className="text-sm text-muted-foreground">Cargando tipos...</p>
+              )}
             </div>
           </div>
 
@@ -119,16 +157,18 @@ export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: Proc
               <h3 className="mb-3">Paso 2: Seleccione la Plantilla</h3>
               {availableTemplates.length > 1 ? (
                 <Select
-                  value={selectedTemplateId?.toString() || availableTemplates[0]?.id.toString()}
+                  value={
+                    selectedTemplateId?.toString() || availableTemplates[0]?.id.toString()
+                  }
                   onValueChange={(value) => setSelectedTemplateId(parseInt(value))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableTemplates.map(template => (
+                    {availableTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.description} (v{template.version})
+                        {template.name || template.description}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -136,62 +176,22 @@ export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: Proc
               ) : (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">{selectedTemplate?.description}</CardTitle>
-                    <CardDescription>Versión {selectedTemplate?.version}</CardDescription>
+                    <CardTitle className="text-base">
+                      {selectedTemplate?.name || selectedTemplate?.description}
+                    </CardTitle>
+                    {selectedTemplate?.description && (
+                      <CardDescription>{selectedTemplate.description}</CardDescription>
+                    )}
                   </CardHeader>
                 </Card>
               )}
             </div>
           )}
 
-          {/* Step 3: Preview Template Steps */}
-          {selectedTemplate && templateSteps.length > 0 && (
-            <div>
-              <h3 className="mb-3">Paso 3: Vista Previa de los Pasos</h3>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Pasos del Proceso ({templateSteps.length} pasos)
-                  </CardTitle>
-                  <CardDescription>
-                    Estos son los pasos que se crearán para el nuevo proceso
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {templateSteps.map((step, index) => (
-                      <div 
-                        key={step.id}
-                        className="flex items-start gap-3 p-3 bg-secondary rounded-lg"
-                      >
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm">
-                          {step.ord}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{step.title}</span>
-                            {step.required && (
-                              <Badge variant="destructive" className="text-xs">
-                                Obligatorio
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {step.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {selectedType && availableTemplates.length === 0 && (
+          {selectedType && availableTemplates.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-4" />
-              <p>No hay plantillas publicadas disponibles para este tipo de proceso</p>
+              <p>No hay plantillas activas disponibles para este tipo de proceso</p>
             </div>
           )}
         </div>
@@ -200,9 +200,9 @@ export function ProcessTemplateSelector({ open, onClose, onCreateProcess }: Proc
           <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleCreateProcess}
-            disabled={!selectedTypeId || !selectedTemplate}
+            disabled={!selectedTypeId || !selectedTemplate || loading}
           >
             Crear Proceso
             <ArrowRight className="w-4 h-4 ml-2" />

@@ -20,7 +20,7 @@ import {
 import { Checkbox } from './ui/checkbox';
 import { Plus, Edit, Eye } from 'lucide-react';
 import type { User } from '../types';
-import { mockProcessTypes, getProcessTypeById } from '../data/mockData';
+import { mockProcessTypes } from '../data/mockData';
 import { toast } from 'sonner@2.0.3';
 import { CreateTemplateModal } from './CreateTemplateModal';
 
@@ -144,6 +144,7 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger>
                 <SelectValue placeholder="Estado" />
@@ -192,24 +193,31 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
                 </TableHeader>
                 <TableBody>
                   {filteredTemplates.map((template) => {
-                    const processType = getProcessTypeById(template.processTypeId);
                     const stepCount = getStepCount(template.id);
+                    const processTypeName =
+                      template.processType?.name ?? 'Sin tipo';
 
                     return (
                       <TableRow key={template.id}>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={selectedItems.includes(template.id)}
-                            onCheckedChange={() => handleSelectItem(template.id)}
+                            onCheckedChange={() =>
+                              handleSelectItem(template.id)
+                            }
                           />
                         </TableCell>
-                        <TableCell>
-                          {processType?.name ?? 'Sin tipo'} - Plantilla
-                        </TableCell>
+
+                        {/* Nombre real de la plantilla */}
+                        <TableCell>{template.name}</TableCell>
+
                         <TableCell className="max-w-md truncate">
                           {template.description}
                         </TableCell>
-                        <TableCell>{processType?.name ?? 'Sin tipo'}</TableCell>
+
+                        {/* Tipo de proceso desde backend */}
+                        <TableCell>{processTypeName}</TableCell>
+
                         <TableCell>
                           <Badge
                             className={
@@ -221,7 +229,9 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
                             {template.isActive ? 'Activa' : 'Obsoleta'}
                           </Badge>
                         </TableCell>
+
                         <TableCell>{stepCount}</TableCell>
+
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm">

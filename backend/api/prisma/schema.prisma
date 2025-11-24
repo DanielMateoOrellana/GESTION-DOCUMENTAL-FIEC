@@ -134,4 +134,24 @@ model StepInstance {
 
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+
+  files             StepFile[]
+}
+
+model StepFile {
+  id           Int          @id @default(autoincrement())
+
+  stepId       Int
+  step         StepInstance @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  version      Int
+  content      Bytes        // <- bytea en Postgres
+
+  uploadedById Int?         // luego lo amarras a User si quieres
+  uploadedAt   DateTime     @default(now())
+
+  @@unique([stepId, version])
 }

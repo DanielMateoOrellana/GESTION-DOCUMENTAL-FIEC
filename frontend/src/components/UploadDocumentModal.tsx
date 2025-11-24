@@ -1,21 +1,36 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+// frontend/src/components/UploadDocumentModal.tsx
+import { useState, type ChangeEvent } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { Button } from './ui/button';
+import { File, Upload, X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Upload, File, X } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+import { uploadStepFile } from '../api/stepFiles';
 
 interface UploadDocumentModalProps {
   stepId: number;
+  open: boolean;
   onClose: () => void;
+  onUploaded?: () => void; // para refrescar la lista luego de subir
 }
 
-export function UploadDocumentModal({ stepId, onClose }: UploadDocumentModalProps) {
+export function UploadDocumentModal({
+  stepId,
+  open,
+  onClose,
+  onUploaded,
+}: UploadDocumentModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
@@ -26,52 +41,45 @@ export function UploadDocumentModal({ stepId, onClose }: UploadDocumentModalProp
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error('Por favor selecciona un archivo');
-      return;
-    }
-
-    setUploading(true);
-    
-    // Simulate file upload
-    setTimeout(() => {
-      const fileInfo = {
-        name: selectedFile.name,
-        size: selectedFile.size,
-        type: selectedFile.type,
-        hash: generateMockHash(),
-      };
-
-      console.log('Archivo subido:', fileInfo);
-      toast.success('Archivo subido exitosamente');
-      setUploading(false);
-      onClose();
-    }, 2000);
-  };
-
-  const generateMockHash = () => {
-    return Array.from({ length: 64 }, () => 
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-  };
-
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     return (bytes / 1024 / 1024).toFixed(2) + ' MB';
   };
 
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error('Por favor selecciona un archivo');
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      await uploadStepFile(stepId, selectedFile);
+
+      toast.success('Archivo subido exitosamente');
+      onUploaded?.();
+      onClose();
+    } catch (error) {
+      console.error('[UploadDocumentModal] Error subiendo archivo', error);
+      toast.error('No se pudo subir el archivo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Cargar Documento</DialogTitle>
           <DialogDescription>
-            Sube el archivo correspondiente a este paso. Se generará automáticamente el hash SHA256 y la versión.
+            Sube el archivo correspondiente a este paso. Se registrará la versión
+            automáticamente.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="file-upload">Archivo</Label>
@@ -90,7 +98,8 @@ export function UploadDocumentModal({ stepId, onClose }: UploadDocumentModalProp
                     <div>
                       <p className="text-sm">{selectedFile.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatFileSize(selectedFile.size)} - {selectedFile.type || 'Tipo desconocido'}
+                        {formatFileSize(selectedFile.size)} -{' '}
+                        {selectedFile.type || 'Tipo desconocido'}
                       </p>
                     </div>
                     <Button
@@ -134,7 +143,9 @@ export function UploadDocumentModal({ stepId, onClose }: UploadDocumentModalProp
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tipo MIME:</span>
-                  <span className="truncate ml-2">{selectedFile.type || 'application/octet-stream'}</span>
+                  <span className="truncate ml-2">
+                    {selectedFile.type || 'application/octet-stream'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Versión:</span>
@@ -146,12 +157,13 @@ export function UploadDocumentModal({ stepId, onClose }: UploadDocumentModalProp
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-xs text-blue-900">
-              <strong>Nota:</strong> Al subir el archivo se generará automáticamente:
+              <strong>Nota:</strong> Al subir el archivo se registran:
             </p>
             <ul className="text-xs text-blue-900 mt-1 ml-4 list-disc">
-              <li>Hash SHA256 para verificación de integridad</li>
+              <li>Nombre original y tipo MIME</li>
+              <li>Tamaño en bytes</li>
               <li>Número de versión incremental</li>
-              <li>Registro en el log de auditoría</li>
+              <li>Usuario que subió el archivo (cuando conectes auth)</li>
             </ul>
           </div>
         </div>
