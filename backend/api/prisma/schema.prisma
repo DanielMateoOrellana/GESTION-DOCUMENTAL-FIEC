@@ -17,141 +17,164 @@ enum EstadoPaso {
   COMPLETADO
 }
 
+enum UserRole {
+  ADMINISTRADOR
+  GESTOR
+  LECTOR
+  AYUDANTE
+}
 
 model ProcessCategory {
-  id           Int           @id @default(autoincrement())
-  name         String        @unique      // Ej: "Evaluación Docente", "Gestión Académica"
-  description  String?
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Ej: "Evaluación Docente", "Gestión Académica"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   processTypes ProcessType[]
 }
 
 model ProcessType {
-  id          Int             @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   name        String
   description String
-  isActive    Boolean         @default(true)
+  isActive    Boolean @default(true)
 
   // Relación con categoría
-  categoryId  Int
-  category    ProcessCategory @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  category   ProcessCategory @relation(fields: [categoryId], references: [id])
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  templates         ProcessTemplate[]
-  processInstances  ProcessInstance[]   // <--- agrega esta línea
+  templates        ProcessTemplate[]
+  processInstances ProcessInstance[]
 }
 
-
 model ProcessTemplate {
-  id            Int                  @id @default(autoincrement())
-  name          String
-  description   String
-  isActive      Boolean              @default(true)
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String
+  isActive    Boolean @default(true)
 
-  processType   ProcessType          @relation(fields: [processTypeId], references: [id])
   processTypeId Int
+  processType   ProcessType @relation(fields: [processTypeId], references: [id])
 
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  steps         ProcessTemplateStep[]
-  // NUEVO: instancias creadas a partir de esta plantilla
+  steps            ProcessTemplateStep[]
+  // Instancias creadas a partir de esta plantilla
   processInstances ProcessInstance[]
 }
 
 model ProcessTemplateStep {
-  id               Int             @id @default(autoincrement())
-  template         ProcessTemplate @relation(fields: [templateId], references: [id])
-  templateId       Int
+  id         Int             @id @default(autoincrement())
+  templateId Int
+  template   ProcessTemplate @relation(fields: [templateId], references: [id])
 
-  order            Int             // 1, 2, 3...
-  name             String
-  description      String?
+  order       Int // 1, 2, 3...
+  name        String
+  description String?
 
-  responsibleRole  String?         // p.ej. "PROFESOR", "SECRETARIA", "DECANO"
-  dueDaysFromStart Int?            // días después del inicio del proceso
-  isMandatory      Boolean         @default(true)
+  responsibleRole  String? // p.ej. "PROFESOR", "SECRETARIA", "DECANO"
+  dueDaysFromStart Int? // días después del inicio del proceso
+  isMandatory      Boolean @default(true)
 
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // NUEVO: pasos concretos de procesos reales
-  stepInstances    StepInstance[]
+  // Pasos concretos de procesos reales
+  stepInstances StepInstance[]
 }
 
 model ProcessInstance {
-  id               Int            @id @default(autoincrement())
-  title            String         // nombre visible del proceso, ej: "Evaluación Docente 2025-I"
+  id    Int    @id @default(autoincrement())
+  title String // nombre visible del proceso, ej: "Evaluación Docente 2025-I"
 
   // Estado en español
-  estado           EstadoProceso  @default(PENDIENTE)
+  estado EstadoProceso @default(PENDIENTE)
 
   // De qué tipo y plantilla viene
-  processTypeId    Int
-  processType      ProcessType    @relation(fields: [processTypeId], references: [id])
+  processTypeId Int
+  processType   ProcessType @relation(fields: [processTypeId], references: [id])
 
-  templateId       Int
-  template         ProcessTemplate @relation(fields: [templateId], references: [id])
+  templateId Int
+  template   ProcessTemplate @relation(fields: [templateId], references: [id])
 
-  // Responsable del proceso (luego lo relacionamos con User si quieres)
+  // Responsable del proceso
   responsibleUserId Int?
+  responsibleUser   User? @relation("UserProcessInstances", fields: [responsibleUserId], references: [id])
 
-  year             Int?
-  month            Int?
-  comment          String?
-  dueAt            DateTime?      // fecha límite global del proceso
-  completedAt      DateTime?      // cuándo se completó todo
+  year        Int?
+  month       Int?
+  comment     String?
+  dueAt       DateTime? // fecha límite global del proceso
+  completedAt DateTime? // cuándo se completó todo
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Pasos concretos del proceso
-  steps            StepInstance[]
+  steps StepInstance[]
 }
 
 model StepInstance {
-  id                Int                @id @default(autoincrement())
-  title             String             // nombre del paso en esta instancia (copiado de la plantilla)
+  id    Int    @id @default(autoincrement())
+  title String // nombre del paso en esta instancia (copiado de la plantilla)
 
   // Estado en español
-  estado            EstadoPaso         @default(PENDIENTE)
+  estado EstadoPaso @default(PENDIENTE)
 
-  comment           String?            // observación del usuario si quieres
+  comment String? // observación del usuario si quieres
 
   processInstanceId Int
-  processInstance   ProcessInstance    @relation(fields: [processInstanceId], references: [id])
+  processInstance   ProcessInstance @relation(fields: [processInstanceId], references: [id])
 
-  templateStepId    Int
-  templateStep      ProcessTemplateStep @relation(fields: [templateStepId], references: [id])
+  templateStepId Int
+  templateStep   ProcessTemplateStep @relation(fields: [templateStepId], references: [id])
 
-  dueAt             DateTime?         // fecha límite de este paso
-  completedAt       DateTime?         // cuándo se subió el archivo y se dio por completado
+  dueAt       DateTime? // fecha límite de este paso
+  completedAt DateTime? // cuándo se subió el archivo y se dio por completado
 
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  files             StepFile[]
+  files StepFile[]
 }
 
 model StepFile {
-  id           Int          @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  stepId       Int
-  step         StepInstance @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stepId Int
+  step   StepInstance @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
   originalName String
   mimeType     String
   sizeBytes    Int
   version      Int
-  content      Bytes        // <- bytea en Postgres
+  content      Bytes // bytea en Postgres
 
-  uploadedById Int?         // luego lo amarras a User si quieres
-  uploadedAt   DateTime     @default(now())
+  uploadedById Int?
+  uploadedBy   User? @relation("UserStepFiles", fields: [uploadedById], references: [id])
+
+  uploadedAt DateTime @default(now())
 
   @@unique([stepId, version])
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
+  password String // hash bcrypt
+  fullName String
+  role     UserRole @default(LECTOR)
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  processInstances ProcessInstance[] @relation("UserProcessInstances")
+  uploadedFiles    StepFile[]        @relation("UserStepFiles")
 }

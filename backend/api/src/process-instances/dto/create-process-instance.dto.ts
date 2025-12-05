@@ -16,10 +16,6 @@ export class CreateProcessInstanceDto {
 
   @IsOptional()
   @IsInt()
-  responsibleUserId?: number;
-
-  @IsOptional()
-  @IsInt()
   @Min(2000)
   year?: number;
 

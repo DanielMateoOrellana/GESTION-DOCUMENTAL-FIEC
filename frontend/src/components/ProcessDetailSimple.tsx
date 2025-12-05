@@ -1,19 +1,19 @@
 // frontend/src/components/ProcessDetailSimple.tsx
-import { useEffect, useState, useCallback } from 'react';
-import type { User } from '../types';
+import { useEffect, useState, useCallback } from "react";
+import type { User } from "../types";
 
-import { getUserById } from '../data/mockData';
+import { getUserById } from "../data/mockData";
 
 import {
   fetchProcessInstances,
   type ProcessInstance as ApiProcessInstance,
-} from '../api/processInstances';
+} from "../api/processInstances";
 
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { Separator } from "./ui/separator";
 import {
   ArrowLeft,
   Upload,
@@ -25,8 +25,8 @@ import {
   Download,
   X,
   TagIcon,
-} from 'lucide-react';
-import { UploadDocumentModal } from './UploadDocumentModal';
+} from "lucide-react";
+import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,13 +34,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from './ui/breadcrumb';
-import { toast } from 'sonner@2.0.3';
+} from "./ui/breadcrumb";
+import { toast } from "sonner@2.0.3";
 import {
   listStepFiles,
   downloadStepFile,
   type StepFileSummary,
-} from '../api/stepFiles';
+} from "../api/stepFiles";
 
 interface ProcessDetailSimpleProps {
   processId: number;
@@ -52,7 +52,7 @@ interface ProcessDetailSimpleProps {
 type ApiStep = {
   id: number;
   title: string;
-  estado: 'PENDIENTE' | 'COMPLETADO' | string;
+  estado: "PENDIENTE" | "COMPLETADO" | string;
   comment: string | null;
   processInstanceId: number;
   templateStepId: number;
@@ -65,9 +65,9 @@ type ApiStep = {
 
 // Etiquetas mock mientras no haya backend de tags
 const mockProcessTags = [
-  { process_id: 1, tag_id: 1, name: 'Urgente', color: '#EF4444' },
-  { process_id: 1, tag_id: 2, name: 'Prioritario', color: '#F59E0B' },
-  { process_id: 2, tag_id: 3, name: 'Revisado', color: '#10B981' },
+  { process_id: 1, tag_id: 1, name: "Urgente", color: "#EF4444" },
+  { process_id: 1, tag_id: 2, name: "Prioritario", color: "#F59E0B" },
+  { process_id: 2, tag_id: 3, name: "Revisado", color: "#10B981" },
 ];
 
 export function ProcessDetailSimple({
@@ -104,11 +104,11 @@ export function ProcessDetailSimple({
             } catch (e) {
               console.error(
                 `[ProcessDetailSimple] Error cargando archivos del paso ${step.id}`,
-                e,
+                e
               );
               return { ...step, files: [] as StepFileSummary[] };
             }
-          }),
+          })
         );
 
         setSteps(stepsWithFiles);
@@ -116,8 +116,8 @@ export function ProcessDetailSimple({
         setSteps([]);
       }
     } catch (e) {
-      console.error('[ProcessDetailSimple] Error cargando proceso', e);
-      setError('No se pudo cargar el proceso');
+      console.error("[ProcessDetailSimple] Error cargando proceso", e);
+      setError("No se pudo cargar el proceso");
     } finally {
       setLoading(false);
     }
@@ -128,44 +128,44 @@ export function ProcessDetailSimple({
   }, [load]);
 
   const getSimplifiedState = (estado?: string | null) => {
-    if (estado === 'COMPLETADO') {
-      return { label: 'Completado', color: 'bg-green-100 text-green-800' };
+    if (estado === "COMPLETADO") {
+      return { label: "Completado", color: "bg-green-100 text-green-800" };
     }
-    return { label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800' };
+    return { label: "Pendiente", color: "bg-yellow-100 text-yellow-800" };
   };
 
   const getStepState = (estado: string) => {
-    if (estado === 'COMPLETADO') {
+    if (estado === "COMPLETADO") {
       return {
-        label: 'Completado',
-        color: 'bg-green-100 text-green-800',
+        label: "Completado",
+        color: "bg-green-100 text-green-800",
         icon: <CheckCircle className="w-5 h-5 text-green-600" />,
       };
     }
     return {
-      label: 'Pendiente',
-      color: 'bg-yellow-100 text-yellow-800',
+      label: "Pendiente",
+      color: "bg-yellow-100 text-yellow-800",
       icon: <Clock className="w-5 h-5 text-yellow-600" />,
     };
   };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("es-ES", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
+    return date.toLocaleDateString("es-ES", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
@@ -183,7 +183,7 @@ export function ProcessDetailSimple({
     try {
       const blob = await downloadStepFile(stepId, file.id);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = file.originalName;
       document.body.appendChild(a);
@@ -191,14 +191,14 @@ export function ProcessDetailSimple({
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('[ProcessDetailSimple] Error descargando archivo', e);
-      toast.error('No se pudo descargar el archivo');
+      console.error("[ProcessDetailSimple] Error descargando archivo", e);
+      toast.error("No se pudo descargar el archivo");
     }
   };
 
   const handleMarkComplete = () => {
     // Aquí luego harás PATCH al backend
-    toast.success('Proceso marcado como completado (mock)');
+    toast.success("Proceso marcado como completado (mock)");
   };
 
   if (loading) {
@@ -214,7 +214,7 @@ export function ProcessDetailSimple({
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            {error || 'Proceso no encontrado'}
+            {error || "Proceso no encontrado"}
           </p>
           <Button onClick={onBack} className="mt-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -233,7 +233,7 @@ export function ProcessDetailSimple({
   const state = getSimplifiedState(process.estado);
   const tags = mockProcessTags.filter((t) => t.process_id === processId);
 
-  const completedSteps = steps.filter((s) => s.estado === 'COMPLETADO').length;
+  const completedSteps = steps.filter((s) => s.estado === "COMPLETADO").length;
   const progressPercent =
     steps.length > 0 ? Math.round((completedSteps * 100) / steps.length) : 0;
   const allStepsComplete = steps.length > 0 && completedSteps === steps.length;
@@ -268,7 +268,7 @@ export function ProcessDetailSimple({
               `Proceso #${process.id}`}
           </h1>
           <p className="text-muted-foreground">
-            {process.processType?.name || 'Tipo desconocido'} - {process.year}
+            {process.processType?.name || "Tipo desconocido"} - {process.year}
           </p>
         </div>
         <Button variant="outline" onClick={onBack}>
@@ -292,7 +292,7 @@ export function ProcessDetailSimple({
               <div className="text-sm text-muted-foreground">Responsable</div>
               <div className="flex items-center gap-2 mt-1">
                 <UserIcon className="w-4 h-4" />
-                <span>{responsible?.full_name || '—'}</span>
+                <span>{responsible?.full_name || "—"}</span>
               </div>
             </div>
             <div>
@@ -323,7 +323,7 @@ export function ProcessDetailSimple({
                   {tags.map((tag) => (
                     <Badge
                       key={tag.tag_id}
-                      style={{ backgroundColor: tag.color, color: '#fff' }}
+                      style={{ backgroundColor: tag.color, color: "#fff" }}
                     >
                       <TagIcon className="w-3 h-3 mr-1" />
                       {tag.name}
@@ -349,7 +349,7 @@ export function ProcessDetailSimple({
             </>
           )}
 
-          {allStepsComplete && process.estado !== 'COMPLETADO' && (
+          {allStepsComplete && process.estado !== "COMPLETADO" && (
             <>
               <Separator />
               <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -419,12 +419,10 @@ export function ProcessDetailSimple({
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-muted-foreground" />
                           <div>
-                            <div className="text-sm">
-                              {file.originalName}
-                            </div>
+                            <div className="text-sm">{file.originalName}</div>
                             <div className="text-xs text-muted-foreground">
-                              v{file.version} ·{' '}
-                              {(file.sizeBytes / 1024).toFixed(1)} KB ·{' '}
+                              v{file.version} ·{" "}
+                              {(file.sizeBytes / 1024).toFixed(1)} KB ·{" "}
                               {formatDateTime(file.uploadedAt)}
                             </div>
                           </div>
@@ -433,9 +431,7 @@ export function ProcessDetailSimple({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              handleDownloadFile(step.id, file)
-                            }
+                            onClick={() => handleDownloadFile(step.id, file)}
                           >
                             <Download className="w-4 h-4" />
                           </Button>

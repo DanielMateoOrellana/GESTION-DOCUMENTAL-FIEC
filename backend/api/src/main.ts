@@ -1,26 +1,30 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS bien abierto para DEV
+  app.enableCors({
+    origin: true, // acepta cualquier origen (útil en local)
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization, Accept',
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
-  app.enableCors({
-    origin: [
-      'http://localhost:3000',        // Vite dev
-      'https://gestion-documental-fiec.vercel.app/',    // luego pones tu URL real
-    ],
-    credentials: false,
-  });
-
   await app.listen(4000);
+  console.log('Backend escuchando en http://localhost:3000');
 }
 bootstrap();

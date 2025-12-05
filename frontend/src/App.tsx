@@ -8,13 +8,21 @@ import { TemplateManagerSimple } from './components/TemplateManagerSimple';
 import { ProcessTypesList } from './components/ProcessTypesList';
 import { Login } from './components/Login';
 import { AppSidebar } from './components/AppSidebar';
-import { User } from './types';
-import { mockUsers } from './data/mockData';
 import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
 import { Toaster } from './components/ui/sonner';
 import { SidebarProvider } from './components/ui/sidebar';
+import { useAuth } from './auth/AuthContext';
+import type { User } from './types';
+import { Register } from './components/Register';
 
-type ViewType = 'dashboard' | 'processes' | 'process-detail' | 'admin' | 'compliance' | 'templates' | 'process-types';
+type ViewType =
+  | 'dashboard'
+  | 'processes'
+  | 'process-detail'
+  | 'admin'
+  | 'compliance'
+  | 'templates'
+  | 'process-types';
 
 interface ViewData {
   processId?: number;
@@ -22,54 +30,69 @@ interface ViewData {
 }
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, loading, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [viewData, setViewData] = useState<ViewData>({});
-  const [unreadNotifications] = useState(2);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  const handleLogin = (email: string, password: string) => {
-    // Simple mock authentication
-    const user = mockUsers.find(u => u.email === email);
-    if (user) {
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-    } else {
-      alert('Credenciales inválidas. Use: renata.avila@fiec.edu.ec / password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setCurrentView('dashboard');
-    setViewData({});
-  };
 
   const handleViewChange = (view: string, data?: any) => {
     setCurrentView(view as ViewType);
     setViewData(data || {});
   };
 
-  if (!isAuthenticated || !currentUser) {
+  const handleLogout = () => {
+    logout();
+    setCurrentView('dashboard');
+    setViewData({});
+  };
+
+  if (loading) {
     return (
-      <>
-        <Login onLogin={handleLogin} />
-        <Toaster />
-      </>
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-muted-foreground">Cargando sesión...</span>
+      </div>
     );
   }
+
+  if (!user) {
+  return (
+    <>
+      {authMode === 'login' ? (
+        <Login onSwitchToRegister={() => setAuthMode('register')} />
+      ) : (
+        <Register onSwitchToLogin={() => setAuthMode('login')} />
+      )}
+      <Toaster />
+    </>
+  );
+}
+
+
+  const currentUser: User = user; // ya viene mapeado desde AuthContext
 
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />;
+        return (
+          <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
+        );
       case 'processes':
-        return <ProcessListSimple currentUser={currentUser} onViewChange={handleViewChange} />;
+        return (
+          <ProcessListSimple
+            currentUser={currentUser}
+            onViewChange={handleViewChange}
+          />
+        );
       case 'templates':
         return <TemplateManagerSimple currentUser={currentUser} />;
       case 'process-types':
-        return <ProcessTypesList currentUser={currentUser} onViewChange={handleViewChange} />;
+        return (
+          <ProcessTypesList
+            currentUser={currentUser}
+            onViewChange={handleViewChange}
+          />
+        );
       case 'process-detail':
         return viewData.processId ? (
           <ProcessDetailSimple
@@ -78,14 +101,24 @@ export default function App() {
             onBack={() => handleViewChange('processes')}
           />
         ) : (
-          <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
+          <Dashboard
+            currentUser={currentUser}
+            onViewChange={handleViewChange}
+          />
         );
       case 'admin':
         return <AdminPanel currentUser={currentUser} />;
       case 'compliance':
-        return <CompliancePanelSimple currentUser={currentUser} onViewChange={handleViewChange} />;
+        return (
+          <CompliancePanelSimple
+            currentUser={currentUser}
+            onViewChange={handleViewChange}
+          />
+        );
       default:
-        return <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />;
+        return (
+          <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
+        );
     }
   };
 
@@ -103,9 +136,9 @@ export default function App() {
           <header className="border-b bg-white sticky top-0 z-10">
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
-                <img 
-                  src={logoEspol} 
-                  alt="ESPOL" 
+                <img
+                  src={logoEspol}
+                  alt="ESPOL"
                   className="h-6 w-auto object-contain"
                 />
                 <h2 className="text-muted-foreground">
@@ -114,16 +147,14 @@ export default function App() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-sm text-muted-foreground">
-                  {currentUser.full_name} (Secretaría)
+                  {currentUser.full_name} ({currentUser.role})
                 </div>
               </div>
             </div>
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 bg-secondary">
-            {renderView()}
-          </main>
+          <main className="flex-1 bg-secondary">{renderView()}</main>
         </div>
       </div>
       <Toaster />

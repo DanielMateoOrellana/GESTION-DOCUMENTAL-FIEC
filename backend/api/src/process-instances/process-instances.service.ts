@@ -7,7 +7,7 @@ import { EstadoProceso, EstadoPaso } from '@prisma/client';
 export class ProcessInstancesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateProcessInstanceDto) {
+  async create(dto: CreateProcessInstanceDto, userId: number) {
     // 1) Buscar la plantilla con sus pasos
     const template = await this.prisma.processTemplate.findUnique({
       where: { id: dto.templateId },
@@ -32,8 +32,8 @@ export class ProcessInstancesService {
         estado: EstadoProceso.PENDIENTE,
         processTypeId: dto.processTypeId,
         templateId: dto.templateId,
-        comment: dto.comment,
-        responsibleUserId: dto.responsibleUserId ?? null,
+        comment: dto.comment ?? null,
+        responsibleUserId: userId,      // <- aquí usamos el usuario logueado
         year: dto.year ?? null,
         month: dto.month ?? null,
         steps: {
@@ -41,7 +41,7 @@ export class ProcessInstancesService {
             title: s.name,
             estado: EstadoPaso.PENDIENTE,
             templateStepId: s.id,
-            // dueAt y compañía los podemos calcular después si quieres
+            // dueAt lo puedes calcular luego si quieres
           })),
         },
       },
@@ -84,7 +84,9 @@ export class ProcessInstancesService {
     });
 
     if (!instance) {
-      throw new NotFoundException(`Instancia de proceso #${id} no encontrada`);
+      throw new NotFoundException(
+        `Instancia de proceso #${id} no encontrada`,
+      );
     }
 
     return instance;

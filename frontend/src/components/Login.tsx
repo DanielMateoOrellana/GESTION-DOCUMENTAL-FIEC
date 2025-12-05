@@ -3,20 +3,42 @@ import { Mail, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from './ui/card';
 import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
+import { useAuth } from '../auth/AuthContext';
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => void;
+  onSwitchToRegister: () => void;
 }
 
-export function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('renata.avila@fiec.edu.ec');
+export function Login({ onSwitchToRegister }: LoginProps) {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      console.error('[Login] error', err);
+      const msg =
+        err?.response?.data?.message ||
+        'Credenciales inválidas o error del servidor';
+      setError(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -24,15 +46,17 @@ export function Login({ onLogin }: LoginProps) {
       <Card className="w-full max-w-md mx-4">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto w-full max-w-sm flex items-center justify-center">
-            <img 
-              src={logoEspol} 
-              alt="ESPOL Logo" 
+            <img
+              src={logoEspol}
+              alt="ESPOL Logo"
               className="w-full h-auto object-contain px-4"
             />
           </div>
           <div>
             <CardTitle>Sistema de Gestión Documental</CardTitle>
-            <CardDescription>FIEC - Facultad de Ingeniería Eléctrica y Computación</CardDescription>
+            <CardDescription>
+              FIEC - Facultad de Ingeniería Eléctrica y Computación
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -67,11 +91,24 @@ export function Login({ onLogin }: LoginProps) {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Iniciar Sesión
+
+            {error && (
+              <p className="text-sm text-red-600 text-center">{error}</p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Credenciales de prueba: renata.avila@fiec.edu.ec / password
+
+            <p className="text-center text-xs text-muted-foreground mt-2">
+              ¿No tienes cuenta aún?{' '}
+              <button
+                type="button"
+                className="text-primary underline"
+                onClick={onSwitchToRegister}
+              >
+                Regístrate
+              </button>
             </p>
           </form>
         </CardContent>
