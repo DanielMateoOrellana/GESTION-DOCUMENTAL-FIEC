@@ -2,8 +2,6 @@
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "../types";
 
-import { getUserById } from "../data/mockData";
-
 import {
   fetchProcessInstances,
   type ProcessInstance as ApiProcessInstance,
@@ -225,9 +223,17 @@ export function ProcessDetailSimple({
     );
   }
 
-  const responsible = process.responsibleUserId
-    ? getUserById(process.responsibleUserId)
-    : null;
+  // Responsable basado en backend + usuario actual, sin mocks
+  const isCurrentUserResponsible =
+    process.responsibleUserId != null &&
+    process.responsibleUserId === currentUser.id;
+
+  const responsibleName =
+    isCurrentUserResponsible
+      ? currentUser.full_name
+      : process.responsibleUserId != null
+      ? `Usuario #${process.responsibleUserId}`
+      : "—";
 
   const createdAtRaw = process.createdAt;
   const state = getSimplifiedState(process.estado);
@@ -292,7 +298,7 @@ export function ProcessDetailSimple({
               <div className="text-sm text-muted-foreground">Responsable</div>
               <div className="flex items-center gap-2 mt-1">
                 <UserIcon className="w-4 h-4" />
-                <span>{responsible?.full_name || "—"}</span>
+                <span>{responsibleName}</span>
               </div>
             </div>
             <div>
@@ -338,7 +344,7 @@ export function ProcessDetailSimple({
             <>
               <Separator />
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify_between mb-2">
                   <span className="text-sm text-muted-foreground">
                     Progreso
                   </span>

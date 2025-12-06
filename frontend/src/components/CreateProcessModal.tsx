@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+// frontend/src/components/CreateProcessModal.tsx
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,28 +7,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { User } from '../types';
-import { toast } from 'sonner@2.0.3';
-import { FileText, CheckCircle } from 'lucide-react';
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { User } from "../types";
+import { toast } from "sonner@2.0.3";
+import { FileText, CheckCircle } from "lucide-react";
 
-import type { ProcessType } from '../api/processTypes';
-import { fetchProcessTypes } from '../api/processTypes';
-import type { ProcessTemplate } from '../api/processTemplates';
-import { fetchProcessTemplates } from '../api/processTemplates';
+import type { ProcessType } from "../api/processTypes";
+import { fetchProcessTypes } from "../api/processTypes";
+import type { ProcessTemplate } from "../api/processTemplates";
+import { fetchProcessTemplates } from "../api/processTemplates";
 import {
   createProcessInstance,
   type CreateProcessInstanceInput,
   type ProcessInstance,
-} from '../api/processInstances';
-import { mockUsers } from '../data/mockData';
+} from "../api/processInstances";
 
 interface CreateProcessModalProps {
   open: boolean;
@@ -45,15 +51,13 @@ export function CreateProcessModal({
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
 
-  const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<string>('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedProcessTypeId, setSelectedProcessTypeId] =
+    useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [showObsoleteTemplates, setShowObsoleteTemplates] = useState(false);
-  const [processTitle, setProcessTitle] = useState('');
+  const [processTitle, setProcessTitle] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [month, setMonth] = useState((new Date().getMonth() + 1).toString());
-  const [responsibleUserId, setResponsibleUserId] = useState(
-    currentUser.id.toString(),
-  );
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -74,7 +78,7 @@ export function CreateProcessModal({
         setTemplates(templatesFromApi);
       } catch (error) {
         console.error(error);
-        toast.error('Error al cargar tipos de proceso o plantillas');
+        toast.error("Error al cargar tipos de proceso o plantillas");
       } finally {
         setLoading(false);
       }
@@ -92,12 +96,12 @@ export function CreateProcessModal({
   });
 
   const selectedTemplate = templates.find(
-    (t) => t.id.toString() === selectedTemplateId,
+    (t) => t.id.toString() === selectedTemplateId
   );
 
   const handleCreate = async () => {
     if (!selectedProcessTypeId || !selectedTemplateId || !processTitle) {
-      toast.error('Complete todos los campos requeridos');
+      toast.error("Complete todos los campos requeridos");
       return;
     }
 
@@ -110,13 +114,12 @@ export function CreateProcessModal({
         title: processTitle,
         year: Number(year),
         month: Number(month),
-        responsibleUserId: Number(responsibleUserId),
         comment: undefined,
       };
 
       const newInstance = await createProcessInstance(payload);
 
-      toast.success('Proceso creado exitosamente');
+      toast.success("Proceso creado exitosamente");
 
       if (onProcessCreated) {
         onProcessCreated(newInstance);
@@ -126,19 +129,18 @@ export function CreateProcessModal({
       onClose();
     } catch (error) {
       console.error(error);
-      toast.error('No se pudo crear el proceso');
+      toast.error("No se pudo crear el proceso");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleReset = () => {
-    setSelectedProcessTypeId('');
-    setSelectedTemplateId('');
-    setProcessTitle('');
+    setSelectedProcessTypeId("");
+    setSelectedTemplateId("");
+    setProcessTitle("");
     setYear(new Date().getFullYear().toString());
     setMonth((new Date().getMonth() + 1).toString());
-    setResponsibleUserId(currentUser.id.toString());
     setShowObsoleteTemplates(false);
   };
 
@@ -166,12 +168,14 @@ export function CreateProcessModal({
                 value={selectedProcessTypeId}
                 onValueChange={(value) => {
                   setSelectedProcessTypeId(value);
-                  setSelectedTemplateId('');
+                  setSelectedTemplateId("");
                 }}
                 disabled={loading}
               >
                 <SelectTrigger id="processType">
-                  <SelectValue placeholder={loading ? 'Cargando...' : 'Seleccione un tipo'} />
+                  <SelectValue
+                    placeholder={loading ? "Cargando..." : "Seleccione un tipo"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {processTypes.map((type) => (
@@ -211,9 +215,7 @@ export function CreateProcessModal({
                     <SelectTrigger id="template">
                       <SelectValue
                         placeholder={
-                          loading
-                            ? 'Cargando...'
-                            : 'Seleccione una plantilla'
+                          loading ? "Cargando..." : "Seleccione una plantilla"
                         }
                       />
                     </SelectTrigger>
@@ -223,8 +225,8 @@ export function CreateProcessModal({
                           key={template.id}
                           value={template.id.toString()}
                         >
-                          {template.name || template.description}{' '}
-                          {!template.isActive && '(Inactiva)'}
+                          {template.name || template.description}{" "}
+                          {!template.isActive && "(Inactiva)"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -285,27 +287,6 @@ export function CreateProcessModal({
                 </Select>
               </div>
             </div>
-
-            <div>
-              <Label htmlFor="responsible">Responsable *</Label>
-              <Select
-                value={responsibleUserId}
-                onValueChange={setResponsibleUserId}
-              >
-                <SelectTrigger id="responsible">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockUsers
-                    .filter((u) => u.is_active)
-                    .map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.full_name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {/* Right Column - Template Preview */}
@@ -319,9 +300,7 @@ export function CreateProcessModal({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <div className="text-sm text-muted-foreground">
-                      Nombre
-                    </div>
+                    <div className="text-sm text-muted-foreground">Nombre</div>
                     <div className="text-sm mt-1">
                       {selectedTemplate.name || selectedTemplate.description}
                     </div>
@@ -341,11 +320,11 @@ export function CreateProcessModal({
                     <Badge
                       className={
                         selectedTemplate.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
                       }
                     >
-                      {selectedTemplate.isActive ? 'Activa' : 'Inactiva'}
+                      {selectedTemplate.isActive ? "Activa" : "Inactiva"}
                     </Badge>
                   </div>
                   <div className="text-xs text-muted-foreground pt-2 border-t">
@@ -370,16 +349,12 @@ export function CreateProcessModal({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={submitting}
-          >
+          <Button variant="outline" onClick={handleClose} disabled={submitting}>
             Cancelar
           </Button>
           <Button onClick={handleCreate} disabled={submitting || loading}>
             <CheckCircle className="w-4 h-4 mr-2" />
-            {submitting ? 'Creando...' : 'Crear Proceso'}
+            {submitting ? "Creando..." : "Crear Proceso"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -5,3 +5,5 @@ node_modules/
 # En caso de que tengas frontend y backend
 frontend/node_modules/
 backend/node_modules/
+backend/api/
+estructura_proyecto.txt

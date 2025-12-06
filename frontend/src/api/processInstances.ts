@@ -59,7 +59,7 @@ export type CreateProcessInstanceInput = {
   comment?: string;
   year?: number;
   month?: number;
-  responsibleUserId?: number;
+  // 🚫 fuera: responsibleUserId
 };
 
 export async function createProcessInstance(

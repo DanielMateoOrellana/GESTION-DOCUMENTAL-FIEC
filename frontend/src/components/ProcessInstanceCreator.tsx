@@ -1,3 +1,4 @@
+// frontend/src/components/ProcessInstanceCreator.tsx
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -14,12 +15,6 @@ import {
 } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { User } from '../types';
-import {
-  mockProcessTypes,
-  mockProcessTemplates,
-  mockStepTemplates,
-  mockUsers,
-} from '../data/mockData';
 import { toast } from 'sonner@2.0.3';
 import { Calendar } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -27,6 +22,11 @@ import {
   createProcessInstance,
   type ProcessInstance as ApiProcessInstance,
 } from '../api/processInstances';
+import {
+  mockProcessTypes,
+  mockProcessTemplates,
+  mockStepTemplates,
+} from '../data/mockData';
 
 interface ProcessInstanceCreatorProps {
   currentUser: User;
@@ -51,13 +51,17 @@ const MONTHS = [
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
 
-export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: ProcessInstanceCreatorProps) {
+export function ProcessInstanceCreator({
+  currentUser,
+  onInstanceCreated,
+}: ProcessInstanceCreatorProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [responsibleUserId, setResponsibleUserId] = useState<number | null>(currentUser.id);
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    new Date().getMonth() + 1,
+  );
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,13 +73,7 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
     : [];
 
   const handleCreateInstance = async () => {
-    if (
-      !selectedProcessTypeId ||
-      !selectedTemplateId ||
-      !selectedYear ||
-      !selectedMonth ||
-      !responsibleUserId
-    ) {
+    if (!selectedProcessTypeId || !selectedTemplateId || !selectedYear || !selectedMonth) {
       toast.error('Por favor complete todos los campos requeridos');
       return;
     }
@@ -86,27 +84,24 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
       const instance = await createProcessInstance({
         processTypeId: selectedProcessTypeId,
         templateId: selectedTemplateId,
-        title: title || `Proceso ${selectedYear}-${String(selectedMonth).padStart(2, '0')}`,
+        title:
+          title || `Proceso ${selectedYear}-${String(selectedMonth).padStart(2, '0')}`,
         comment: comment || undefined,
         year: selectedYear,
         month: selectedMonth,
-        responsibleUserId,
       });
 
       toast.success(
         `Instancia creada exitosamente. ${(instance.steps?.length ?? 0)} pasos creados en estado "PENDIENTE"`,
       );
 
-      if (onInstanceCreated) {
-        onInstanceCreated(instance);
-      }
+      onInstanceCreated?.(instance);
 
       // Reset
       setSelectedProcessTypeId(null);
       setSelectedTemplateId(null);
       setSelectedYear(CURRENT_YEAR);
       setSelectedMonth(new Date().getMonth() + 1);
-      setResponsibleUserId(currentUser.id);
       setTitle('');
       setComment('');
       setIsCreating(false);
@@ -122,10 +117,6 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
     return mockProcessTypes.find((t) => t.id === id)?.name || '';
   };
 
-  const getUserName = (id: number) => {
-    return mockUsers.find((u) => u.id === id)?.full_name || '';
-  };
-
   return (
     <div>
       <Button onClick={() => setIsCreating(true)} className="w-full">
@@ -137,7 +128,9 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Crear Instancia de Proceso</DialogTitle>
-            <DialogDescription>Instanciar un proceso desde una plantilla publicada</DialogDescription>
+            <DialogDescription>
+              Instanciar un proceso desde una plantilla publicada
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -184,7 +177,8 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
                       );
                       return (
                         <SelectItem key={template.id} value={template.id.toString()}>
-                          {template.description} (v{template.version}) - {steps.length} pasos
+                          {template.description} (v{template.version}) -{' '}
+                          {steps.length} pasos
                         </SelectItem>
                       );
                     })}
@@ -239,28 +233,6 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
               </div>
             </div>
 
-            {/* Responsable */}
-            <div>
-              <Label htmlFor="responsible">Responsable *</Label>
-              <Select
-                value={responsibleUserId?.toString()}
-                onValueChange={(value) => setResponsibleUserId(parseInt(value))}
-              >
-                <SelectTrigger id="responsible">
-                  <SelectValue placeholder="Seleccione un responsable" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockUsers
-                    .filter((u) => u.is_active)
-                    .map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.full_name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Título opcional */}
             <div>
               <Label htmlFor="title">Título (Opcional)</Label>
@@ -285,56 +257,56 @@ export function ProcessInstanceCreator({ currentUser, onInstanceCreated }: Proce
             </div>
 
             {/* Vista previa */}
-            {selectedProcessTypeId &&
-              selectedTemplateId &&
-              selectedYear &&
-              selectedMonth &&
-              responsibleUserId && (
-                <Card className="bg-secondary">
-                  <CardHeader>
-                    <CardTitle className="text-sm">Vista Previa</CardTitle>
-                    <CardDescription className="text-xs">
-                      El proceso se creará en estado <strong>"PENDIENTE"</strong> y todos los pasos también
-                      estarán en <strong>"PENDIENTE"</strong>.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tipo:</span>
-                      <span>{getProcessTypeName(selectedProcessTypeId)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Periodo:</span>
-                      <span>
-                        {MONTHS.find((m) => m.value === selectedMonth)?.label} {selectedYear}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Responsable:</span>
-                      <span>{getUserName(responsibleUserId)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Pasos a crear:</span>
-                      <Badge>
-                        {
-                          mockStepTemplates.filter(
-                            (st) => st.template_id === selectedTemplateId,
-                          ).length
-                        }{' '}
-                        pasos
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+            {selectedProcessTypeId && selectedTemplateId && (
+              <Card className="bg-secondary">
+                <CardHeader>
+                  <CardTitle className="text-sm">Vista Previa</CardTitle>
+                  <CardDescription className="text-xs">
+                    El proceso se creará en estado <strong>"PENDIENTE"</strong> y
+                    todos los pasos también estarán en{" "}
+                    <strong>"PENDIENTE"</strong>.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span>{getProcessTypeName(selectedProcessTypeId)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Periodo:</span>
+                    <span>
+                      {
+                        MONTHS.find((m) => m.value === selectedMonth)
+                          ?.label
+                      }{" "}
+                      {selectedYear}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Responsable:</span>
+                    <span>{currentUser.full_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pasos a crear:</span>
+                    <Badge>
+                      {
+                        mockStepTemplates.filter(
+                          (st) => st.template_id === selectedTemplateId,
+                        ).length
+                      }{" "}
+                      pasos
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setIsCreating(false);
-              }}
+              onClick={() => setIsCreating(false)}
+              disabled={loading}
             >
               Cancelar
             </Button>
