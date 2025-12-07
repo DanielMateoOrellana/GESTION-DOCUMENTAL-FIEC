@@ -23,6 +23,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Search, Plus, Eye, X } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { CreateProcessModal } from "./CreateProcessModal";
+import { Progress } from "./ui/progress";
 
 import {
   fetchProcessInstances,
@@ -319,6 +320,7 @@ export function ProcessListSimple({
                 <TableHead>Año</TableHead>
                 <TableHead>Responsable</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Progreso</TableHead>
                 <TableHead>Etiquetas</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -334,6 +336,11 @@ export function ProcessListSimple({
                     : process.responsibleUserId != null
                     ? `Usuario #${process.responsibleUserId}`
                     : "—";
+
+                 const minSteps = process.steps || [];
+                 const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
+                 const totalSteps = minSteps.length;
+                 const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
                 return (
                   <TableRow key={process.id}>
@@ -361,6 +368,19 @@ export function ProcessListSimple({
                     <TableCell>{responsibleLabel}</TableCell>
                     <TableCell>
                       <Badge className={state.color}>{state.label}</Badge>
+                    </TableCell>
+                    <TableCell>
+                         <div className="space-y-1 min-w-[120px]">
+                              <div className="flex items-center gap-2">
+                                <Progress value={progressPercent} className="h-2 flex-1" />
+                                <span className="text-xs text-muted-foreground w-8 text-right">
+                                  {progressPercent}%
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {completedSteps} de {totalSteps} completados
+                              </div>
+                            </div>
                     </TableCell>
                     <TableCell>
                       {editingTags === process.id ? (

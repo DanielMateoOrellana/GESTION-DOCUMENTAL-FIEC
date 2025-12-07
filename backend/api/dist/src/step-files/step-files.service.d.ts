@@ -3,39 +3,40 @@ export declare class StepFilesService {
     private prisma;
     constructor(prisma: PrismaService);
     upload(stepId: number, file: Express.Multer.File, userId?: number): Promise<{
-        id: number;
-        stepId: number;
         originalName: string;
         mimeType: string;
         sizeBytes: number;
         version: number;
-        uploadedById: number | null;
         uploadedAt: Date;
+        id: number;
+        stepId: number;
+        uploadedById: number | null;
     }>;
     listByStep(stepId: number): Promise<{
-        id: number;
-        stepId: number;
         originalName: string;
         mimeType: string;
         sizeBytes: number;
         version: number;
-        uploadedById: number | null;
         uploadedAt: Date;
         uploadedBy: {
             id: number;
             email: string;
             fullName: string;
         } | null;
-    }[]>;
-    getFile(stepId: number, fileId: number): Promise<{
         id: number;
         stepId: number;
+        uploadedById: number | null;
+    }[]>;
+    getFile(stepId: number, fileId: number): Promise<{
         originalName: string;
         mimeType: string;
         sizeBytes: number;
         version: number;
         content: import("@prisma/client/runtime/library").Bytes;
-        uploadedById: number | null;
         uploadedAt: Date;
+        id: number;
+        stepId: number;
+        uploadedById: number | null;
     }>;
+    deleteFile(stepId: number, fileId: number): Promise<void>;
 }

@@ -7,6 +7,7 @@ export class StepFilesService {
   constructor(private prisma: PrismaService) { }
 
   async upload(stepId: number, file: Express.Multer.File, userId?: number) {
+    // ... (existing upload logic) ...
     // última versión + 1
     const last = await this.prisma.stepFile.findFirst({
       where: { stepId },
@@ -29,6 +30,41 @@ export class StepFilesService {
 
     // no devolvemos el blob
     const { content, ...rest } = created;
+
+    // --- LOGICA DE AUTO-COMPLETADO ---
+    // 1. Marcar el paso actual como COMPLETADO
+    const step = await this.prisma.stepInstance.update({
+      where: { id: stepId },
+      data: {
+        estado: 'COMPLETADO',
+        completedAt: new Date(),
+      },
+      include: {
+        processInstance: {
+          include: {
+            steps: true, // necesitamos los hermanos para verificar si están todos completos
+          },
+        },
+      },
+    });
+
+    // 2. Verificar si todos los pasos del proceso están COMPLETADOS
+    const allStepsCompleted = step.processInstance.steps.every(
+      (s) => s.estado === 'COMPLETADO',
+    );
+
+    if (allStepsCompleted) {
+      // 3. Si todo está completo, marcar el proceso como COMPLETADO
+      await this.prisma.processInstance.update({
+        where: { id: step.processInstance.id },
+        data: {
+          estado: 'COMPLETADO',
+          completedAt: new Date(),
+        },
+      });
+    }
+    // ---------------------------------
+
     return rest;
   }
 
@@ -66,5 +102,52 @@ export class StepFilesService {
     }
 
     return file;
+  }
+
+  async deleteFile(stepId: number, fileId: number) {
+    const file = await this.prisma.stepFile.findFirst({
+      where: { id: fileId, stepId },
+    });
+
+    if (!file) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+
+    await this.prisma.stepFile.delete({
+      where: { id: fileId },
+    });
+
+    // Verificar si quedan archivos en el paso
+    const remainingFiles = await this.prisma.stepFile.count({
+      where: { stepId },
+    });
+
+    if (remainingFiles === 0) {
+      // Revertir paso a PENDIENTE
+      await this.prisma.stepInstance.update({
+        where: { id: stepId },
+        data: {
+          estado: 'PENDIENTE',
+          completedAt: null,
+        },
+      });
+
+      // Revertir proceso a PENDIENTE si estaba completado?
+      // Buscamos el proceso
+      const step = await this.prisma.stepInstance.findUnique({
+        where: { id: stepId },
+        include: { processInstance: true }
+      });
+
+      if (step && step.processInstance.estado === 'COMPLETADO') {
+        await this.prisma.processInstance.update({
+          where: { id: step.processInstanceId },
+          data: {
+            estado: 'PENDIENTE',
+            completedAt: null
+          }
+        });
+      }
+    }
   }
 }

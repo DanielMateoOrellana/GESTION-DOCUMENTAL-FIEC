@@ -38,6 +38,10 @@ let StepFilesController = class StepFilesController {
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.originalName)}"`);
         res.send(Buffer.from(file.content));
     }
+    async deleteFile(stepId, fileId) {
+        await this.stepFilesService.deleteFile(stepId, fileId);
+        return { success: true };
+    }
 };
 exports.StepFilesController = StepFilesController;
 __decorate([
@@ -69,6 +73,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number, Object]),
     __metadata("design:returntype", Promise)
 ], StepFilesController.prototype, "downloadFile", null);
+__decorate([
+    (0, common_1.Delete)(':stepId/files/:fileId'),
+    __param(0, (0, common_1.Param)('stepId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Param)('fileId', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:returntype", Promise)
+], StepFilesController.prototype, "deleteFile", null);
 exports.StepFilesController = StepFilesController = __decorate([
     (0, common_1.Controller)('steps'),
     __metadata("design:paramtypes", [step_files_service_1.StepFilesService])

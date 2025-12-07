@@ -49,3 +49,11 @@ export async function downloadStepFile(
   });
   return response.data as Blob;
 }
+
+// Eliminar archivo
+export async function deleteStepFile(
+  stepId: number,
+  fileId: number,
+): Promise<void> {
+  await api.delete(`/steps/${stepId}/files/${fileId}`);
+}

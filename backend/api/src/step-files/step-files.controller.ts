@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Param,
   ParseIntPipe,
   UploadedFile,
@@ -60,5 +61,14 @@ export class StepFilesController {
     );
 
     res.send(Buffer.from(file.content));
+  }
+
+  @Delete(':stepId/files/:fileId')
+  async deleteFile(
+    @Param('stepId', ParseIntPipe) stepId: number,
+    @Param('fileId', ParseIntPipe) fileId: number,
+  ) {
+    await this.stepFilesService.deleteFile(stepId, fileId);
+    return { success: true };
   }
 }

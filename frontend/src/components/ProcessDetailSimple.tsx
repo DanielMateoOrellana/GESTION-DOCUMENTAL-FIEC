@@ -33,10 +33,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import {
   listStepFiles,
   downloadStepFile,
+  deleteStepFile,
   type StepFileSummary,
 } from "../api/stepFiles";
 
@@ -172,9 +173,26 @@ export function ProcessDetailSimple({
     setUploadModalOpen(true);
   };
 
-  const handleRemoveFile = (fileId: number, fileName: string) => {
-    // Aún no tienes endpoint DELETE; se queda como mock
-    toast.success(`Archivo ${fileName} eliminado (mock)`);
+  const handleRemoveFile = async (fileId: number, fileName: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar el archivo "${fileName}"?`)) return;
+
+    // Si no tenemos stepId, no podemos llamar a la API correctamente (la API pide /steps/:stepId/files/:fileId)
+    // Buscamos el step al que pertenece este archivo
+    // En tu estado "steps", cada step tiene "files". Busquemos ahí.
+    const stepFound = steps.find(s => s.files?.some(f => f.id === fileId));
+    if (!stepFound) {
+      toast.error("No se encontró el paso del archivo");
+      return;
+    }
+
+    try {
+      await deleteStepFile(stepFound.id, fileId);
+      toast.success(`Archivo ${fileName} eliminado`);
+      load(); // Recargar datos para actualizar estado del paso/proceso
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al eliminar el archivo");
+    }
   };
 
   const handleDownloadFile = async (stepId: number, file: StepFileSummary) => {
@@ -232,8 +250,8 @@ export function ProcessDetailSimple({
     isCurrentUserResponsible
       ? currentUser.full_name
       : process.responsibleUserId != null
-      ? `Usuario #${process.responsibleUserId}`
-      : "—";
+        ? `Usuario #${process.responsibleUserId}`
+        : "—";
 
   const createdAtRaw = process.createdAt;
   const state = getSimplifiedState(process.estado);
@@ -344,7 +362,7 @@ export function ProcessDetailSimple({
             <>
               <Separator />
               <div>
-                <div className="flex items-center justify_between mb-2">
+                <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">
                     Progreso
                   </span>

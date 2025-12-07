@@ -60,7 +60,9 @@ export class ProcessInstancesService {
       include: {
         processType: true,
         template: true,
-        steps: true,
+        steps: {
+          orderBy: { id: 'asc' }
+        },
         responsibleUser: true,
       },
       orderBy: { id: 'desc' },

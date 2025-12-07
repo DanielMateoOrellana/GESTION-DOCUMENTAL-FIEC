@@ -35,6 +35,30 @@ let StepFilesService = class StepFilesService {
             },
         });
         const { content, ...rest } = created;
+        const step = await this.prisma.stepInstance.update({
+            where: { id: stepId },
+            data: {
+                estado: 'COMPLETADO',
+                completedAt: new Date(),
+            },
+            include: {
+                processInstance: {
+                    include: {
+                        steps: true,
+                    },
+                },
+            },
+        });
+        const allStepsCompleted = step.processInstance.steps.every((s) => s.estado === 'COMPLETADO');
+        if (allStepsCompleted) {
+            await this.prisma.processInstance.update({
+                where: { id: step.processInstance.id },
+                data: {
+                    estado: 'COMPLETADO',
+                    completedAt: new Date(),
+                },
+            });
+        }
         return rest;
     }
     async listByStep(stepId) {
@@ -68,6 +92,42 @@ let StepFilesService = class StepFilesService {
             throw new common_1.NotFoundException('Archivo no encontrado');
         }
         return file;
+    }
+    async deleteFile(stepId, fileId) {
+        const file = await this.prisma.stepFile.findFirst({
+            where: { id: fileId, stepId },
+        });
+        if (!file) {
+            throw new common_1.NotFoundException('Archivo no encontrado');
+        }
+        await this.prisma.stepFile.delete({
+            where: { id: fileId },
+        });
+        const remainingFiles = await this.prisma.stepFile.count({
+            where: { stepId },
+        });
+        if (remainingFiles === 0) {
+            await this.prisma.stepInstance.update({
+                where: { id: stepId },
+                data: {
+                    estado: 'PENDIENTE',
+                    completedAt: null,
+                },
+            });
+            const step = await this.prisma.stepInstance.findUnique({
+                where: { id: stepId },
+                include: { processInstance: true }
+            });
+            if (step && step.processInstance.estado === 'COMPLETADO') {
+                await this.prisma.processInstance.update({
+                    where: { id: step.processInstanceId },
+                    data: {
+                        estado: 'PENDIENTE',
+                        completedAt: null
+                    }
+                });
+            }
+        }
     }
 };
 exports.StepFilesService = StepFilesService;

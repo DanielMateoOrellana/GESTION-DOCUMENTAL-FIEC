@@ -5,183 +5,183 @@ export declare class ProcessInstancesController {
     constructor(service: ProcessInstancesService);
     create(dto: CreateProcessInstanceDto, req: any): Promise<{
         processType: {
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
             name: string;
             description: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            id: number;
             categoryId: number;
         };
-        steps: {
+        template: {
             createdAt: Date;
             updatedAt: Date;
             id: number;
+            processTypeId: number;
+            name: string;
+            description: string;
+            isActive: boolean;
+        };
+        steps: {
             title: string;
             estado: import("@prisma/client").$Enums.EstadoPaso;
             comment: string | null;
             dueAt: Date | null;
             completedAt: Date | null;
-            processInstanceId: number;
-            templateStepId: number;
-        }[];
-        template: {
-            name: string;
-            description: string;
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
-            processTypeId: number;
-        };
+            templateStepId: number;
+            processInstanceId: number;
+        }[];
     } & {
+        title: string;
+        estado: import("@prisma/client").$Enums.EstadoProceso;
+        year: number | null;
+        month: number | null;
+        comment: string | null;
+        dueAt: Date | null;
+        completedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
         id: number;
         processTypeId: number;
-        title: string;
-        estado: import("@prisma/client").$Enums.EstadoProceso;
-        comment: string | null;
-        dueAt: Date | null;
-        completedAt: Date | null;
         templateId: number;
-        year: number | null;
-        month: number | null;
         responsibleUserId: number | null;
     }>;
     findAll(): import("@prisma/client").Prisma.PrismaPromise<({
         processType: {
-            name: string;
-            description: string;
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
+            name: string;
+            description: string;
+            isActive: boolean;
             categoryId: number;
         };
-        steps: {
-            createdAt: Date;
-            updatedAt: Date;
-            id: number;
-            title: string;
-            estado: import("@prisma/client").$Enums.EstadoPaso;
-            comment: string | null;
-            dueAt: Date | null;
-            completedAt: Date | null;
-            processInstanceId: number;
-            templateStepId: number;
-        }[];
         template: {
-            name: string;
-            description: string;
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
             processTypeId: number;
+            name: string;
+            description: string;
+            isActive: boolean;
         };
         responsibleUser: {
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
+            isActive: boolean;
             email: string;
             password: string;
             fullName: string;
             role: import("@prisma/client").$Enums.UserRole;
         } | null;
+        steps: {
+            title: string;
+            estado: import("@prisma/client").$Enums.EstadoPaso;
+            comment: string | null;
+            dueAt: Date | null;
+            completedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
+            templateStepId: number;
+            processInstanceId: number;
+        }[];
     } & {
+        title: string;
+        estado: import("@prisma/client").$Enums.EstadoProceso;
+        year: number | null;
+        month: number | null;
+        comment: string | null;
+        dueAt: Date | null;
+        completedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
         id: number;
         processTypeId: number;
-        title: string;
-        estado: import("@prisma/client").$Enums.EstadoProceso;
-        comment: string | null;
-        dueAt: Date | null;
-        completedAt: Date | null;
         templateId: number;
-        year: number | null;
-        month: number | null;
         responsibleUserId: number | null;
     })[]>;
     findOne(id: number): Promise<{
         processType: {
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
             name: string;
             description: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            id: number;
             categoryId: number;
         };
-        steps: ({
-            templateStep: {
-                name: string;
-                description: string | null;
+        template: {
+            processType: {
                 createdAt: Date;
                 updatedAt: Date;
                 id: number;
-                order: number;
-                responsibleRole: string | null;
-                dueDaysFromStart: number | null;
-                isMandatory: boolean;
-                templateId: number;
-            };
-        } & {
-            createdAt: Date;
-            updatedAt: Date;
-            id: number;
-            title: string;
-            estado: import("@prisma/client").$Enums.EstadoPaso;
-            comment: string | null;
-            dueAt: Date | null;
-            completedAt: Date | null;
-            processInstanceId: number;
-            templateStepId: number;
-        })[];
-        template: {
-            processType: {
                 name: string;
                 description: string;
                 isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                id: number;
                 categoryId: number;
             };
         } & {
-            name: string;
-            description: string;
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
             processTypeId: number;
+            name: string;
+            description: string;
+            isActive: boolean;
         };
         responsibleUser: {
-            isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
             id: number;
+            isActive: boolean;
             email: string;
             password: string;
             fullName: string;
             role: import("@prisma/client").$Enums.UserRole;
         } | null;
+        steps: ({
+            templateStep: {
+                createdAt: Date;
+                updatedAt: Date;
+                id: number;
+                templateId: number;
+                name: string;
+                description: string | null;
+                order: number;
+                responsibleRole: string | null;
+                dueDaysFromStart: number | null;
+                isMandatory: boolean;
+            };
+        } & {
+            title: string;
+            estado: import("@prisma/client").$Enums.EstadoPaso;
+            comment: string | null;
+            dueAt: Date | null;
+            completedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
+            templateStepId: number;
+            processInstanceId: number;
+        })[];
     } & {
+        title: string;
+        estado: import("@prisma/client").$Enums.EstadoProceso;
+        year: number | null;
+        month: number | null;
+        comment: string | null;
+        dueAt: Date | null;
+        completedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
         id: number;
         processTypeId: number;
-        title: string;
-        estado: import("@prisma/client").$Enums.EstadoProceso;
-        comment: string | null;
-        dueAt: Date | null;
-        completedAt: Date | null;
         templateId: number;
-        year: number | null;
-        month: number | null;
         responsibleUserId: number | null;
     }>;
 }

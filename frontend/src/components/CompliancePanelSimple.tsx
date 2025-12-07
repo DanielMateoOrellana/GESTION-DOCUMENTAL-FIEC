@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,8 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Checkbox } from './ui/checkbox';
 import { FileDown, Search } from 'lucide-react';
 import { User } from '../types';
-import { mockProcessInstances, getProcessTypeById, getUserById, getProgressForProcess, getStepsForProcess } from '../data/mockData';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import {
+  fetchProcessInstances,
+  type ProcessInstance,
+  type EstadoProceso
+} from '../api/processInstances';
 
 interface CompliancePanelSimpleProps {
   currentUser: User;
@@ -19,35 +23,44 @@ interface CompliancePanelSimpleProps {
 export function CompliancePanelSimple({ currentUser, onViewChange }: CompliancePanelSimpleProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProcesses, setSelectedProcesses] = useState<number[]>([]);
+  const [instances, setInstances] = useState<ProcessInstance[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Crear datos de cumplimiento
-  const complianceData = mockProcessInstances.map(process => {
-    const processType = getProcessTypeById(process.process_type_id);
-    const responsible = getUserById(process.responsible_user_id);
-    const progress = getProgressForProcess(process.id);
-    
-    return {
-      process,
-      processType,
-      responsible,
-      progress: progress?.progress_percent || 0
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchProcessInstances();
+        setInstances(data);
+      } catch (error) {
+        console.error('Error cargando procesos', error);
+        toast.error('Error al cargar la información de cumplimiento');
+      } finally {
+        setLoading(false);
+      }
     };
-  });
+    loadData();
+  }, []);
 
-  const filteredData = complianceData.filter(({ process, processType, responsible }) => {
+  // Filtrado
+  const filteredData = instances.filter((process) => {
     if (!searchTerm) return true;
-    
+
     const searchLower = searchTerm.toLowerCase();
+    const title = process.title?.toLowerCase() || '';
+    const typeName = process.processType?.name?.toLowerCase() || '';
+    const responsibleName = process.responsibleUser?.fullName?.toLowerCase() || '';
+
     return (
-      process.title?.toLowerCase().includes(searchLower) ||
-      processType?.name.toLowerCase().includes(searchLower) ||
-      responsible?.full_name.toLowerCase().includes(searchLower)
+      title.includes(searchLower) ||
+      typeName.includes(searchLower) ||
+      responsibleName.includes(searchLower)
     );
   });
 
   const handleSelectProcess = (processId: number) => {
-    setSelectedProcesses(prev => 
-      prev.includes(processId) 
+    setSelectedProcesses(prev =>
+      prev.includes(processId)
         ? prev.filter(id => id !== processId)
         : [...prev, processId]
     );
@@ -57,7 +70,7 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
     if (selectedProcesses.length === filteredData.length) {
       setSelectedProcesses([]);
     } else {
-      setSelectedProcesses(filteredData.map(d => d.process.id));
+      setSelectedProcesses(filteredData.map(p => p.id));
     }
   };
 
@@ -65,10 +78,11 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
     onViewChange('process-detail', { processId });
   };
 
-  const getStateBadge = (state: string) => {
-    const simpleState = state === 'APPROVED' || state === 'CLOSED' ? 'Completado' : 'Pendiente';
-    const color = simpleState === 'Completado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
-    return <Badge className={color}>{simpleState}</Badge>;
+  const getStateBadge = (state: EstadoProceso) => {
+    if (state === 'COMPLETADO') {
+      return <Badge className="bg-green-100 text-green-800">Completado</Badge>;
+    }
+    return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>;
   };
 
   const handleExportSelected = () => {
@@ -79,9 +93,11 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
     toast.success(`Exportando ${selectedProcesses.length} proceso(s)`);
   };
 
-  const totalProcesses = mockProcessInstances.length;
-  const completedProcesses = mockProcessInstances.filter(p => p.state === 'APPROVED' || p.state === 'CLOSED').length;
-  const pendingProcesses = totalProcesses - completedProcesses;
+  // Estadísticas calculadas sobre la data real
+  const totalProcesses = instances.length;
+  // Se considera completado si el estado del processo es 'COMPLETADO'
+  const completedProcesses = instances.filter(p => p.estado === 'COMPLETADO').length;
+  const pendingProcesses = instances.filter(p => p.estado === 'PENDIENTE').length;
   const overallCompliance = totalProcesses > 0 ? Math.round((completedProcesses / totalProcesses) * 100) : 0;
 
   return (
@@ -101,25 +117,25 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl">{totalProcesses}</div>
+            <div className="text-2xl">{loading ? '...' : totalProcesses}</div>
             <p className="text-xs text-muted-foreground mt-1">Total procesos</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl text-green-600">{completedProcesses}</div>
+            <div className="text-2xl text-green-600">{loading ? '...' : completedProcesses}</div>
             <p className="text-xs text-muted-foreground mt-1">Completados</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl text-yellow-600">{pendingProcesses}</div>
+            <div className="text-2xl text-yellow-600">{loading ? '...' : pendingProcesses}</div>
             <p className="text-xs text-muted-foreground mt-1">Pendientes</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl">{overallCompliance}%</div>
+            <div className="text-2xl">{loading ? '...' : overallCompliance}%</div>
             <p className="text-xs text-muted-foreground mt-1">Cumplimiento general</p>
           </CardContent>
         </Card>
@@ -173,37 +189,52 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map(({ process, processType, responsible, progress }) => (
-                <TableRow 
-                  key={process.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button, input')) return;
-                    handleProcessClick(process.id);
-                  }}
-                >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedProcesses.includes(process.id)}
-                      onCheckedChange={() => handleSelectProcess(process.id)}
-                    />
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Cargando datos...
                   </TableCell>
-                  <TableCell>{process.title || processType?.name}</TableCell>
-                  <TableCell>{processType?.name}</TableCell>
-                  <TableCell>{responsible?.full_name}</TableCell>
-                  <TableCell>{getStateBadge(process.state)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={progress} className="w-24 h-2" />
-                      <span className="text-sm text-muted-foreground">{progress}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{process.year}</TableCell>
                 </TableRow>
-              ))}
+              ) : filteredData.map((process) => {
+                // Calcular progreso individual
+                const steps = process.steps || [];
+                const completedSteps = steps.filter(s => s.estado === 'COMPLETADO').length;
+                const progress = steps.length > 0 ? Math.round((completedSteps / steps.length) * 100) : 0;
+
+                return (
+                  <TableRow
+                    key={process.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, input')) return;
+                      handleProcessClick(process.id);
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedProcesses.includes(process.id)}
+                        onCheckedChange={() => handleSelectProcess(process.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {process.title || process.processType?.name || `Proceso ${process.id}`}
+                    </TableCell>
+                    <TableCell>{process.processType?.name || '-'}</TableCell>
+                    <TableCell>{process.responsibleUser?.fullName || '—'}</TableCell>
+                    <TableCell>{getStateBadge(process.estado)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={progress} className="w-24 h-2" />
+                        <span className="text-sm text-muted-foreground">{progress}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{process.year || '-'}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-          {filteredData.length === 0 && (
+          {!loading && filteredData.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p>No hay procesos para mostrar</p>
             </div>
