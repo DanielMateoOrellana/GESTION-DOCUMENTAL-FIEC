@@ -1,0 +1,59 @@
+services:
+  # Base de Datos (PostgreSQL)
+  db:
+    image: postgres:16
+    container_name: fiec_postgres
+    hostname: ce0054e3c855
+    mac_address: 22:50:5e:48:15:e2
+    environment:
+      POSTGRES_DB: fiec_docs
+      POSTGRES_USER: fiec_user
+      POSTGRES_PASSWORD: fiec_pass
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - fiec_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - fiec_network
+    restart: no
+
+  # Backend (NestJS)
+  backend:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    container_name: fiec_backend
+    depends_on:
+      - db
+    environment:
+      # Sobreescribe la URL de la BD para usar el nombre del servicio 'db' en lugar de localhost
+      DATABASE_URL: postgresql://fiec_user:fiec_pass@db:5432/fiec_docs?schema=public
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    networks:
+      - fiec_network
+    # Migraciones + Start
+    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+    restart: always
+    # Frontend (React + Vite + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fiec_frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - fiec_network
+
+volumes:
+  fiec_pgdata:
+
+
+networks:
+  fiec_network:
+    driver: bridge
