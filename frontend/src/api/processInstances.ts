@@ -24,6 +24,11 @@ export type ProcessInstance = {
   processTypeId: number;
   templateId: number;
   responsibleUserId: number | null;
+  responsibleUser?: {
+    id: number;
+    fullName: string;
+    email: string;
+  };
   year: number | null;
   month: number | null;
   comment: string | null;

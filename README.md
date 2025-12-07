@@ -305,7 +305,7 @@ npm install
 Crear o editar `frontend/.env.local`:
 
 ```env
-VITE_API_BASE_URL="http://localhost:3000"
+VITE_API_BASE_URL="http://localhost:4000"
 ```
 
 Usar el mismo puerto que el backend. Ver `src/api/http.ts` (o equivalente) para confirmar cómo se usa esta variable.

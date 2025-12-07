@@ -22,11 +22,11 @@ let StepFilesController = class StepFilesController {
     constructor(stepFilesService) {
         this.stepFilesService = stepFilesService;
     }
-    async uploadFile(stepId, file) {
+    async uploadFile(stepId, file, req) {
         if (!file) {
             throw new common_1.BadRequestException('Se requiere un archivo (campo "file")');
         }
-        const userId = 1;
+        const userId = req.user?.id;
         return this.stepFilesService.upload(stepId, file, userId);
     }
     async listFiles(stepId) {
@@ -48,8 +48,9 @@ __decorate([
     })),
     __param(0, (0, common_1.Param)('stepId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], StepFilesController.prototype, "uploadFile", null);
 __decorate([

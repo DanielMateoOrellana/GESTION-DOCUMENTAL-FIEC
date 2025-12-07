@@ -80,6 +80,16 @@ export declare class ProcessInstancesService {
             id: number;
             processTypeId: number;
         };
+        responsibleUser: {
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
+            email: string;
+            password: string;
+            fullName: string;
+            role: import("@prisma/client").$Enums.UserRole;
+        } | null;
     } & {
         createdAt: Date;
         updatedAt: Date;
@@ -149,6 +159,16 @@ export declare class ProcessInstancesService {
             id: number;
             processTypeId: number;
         };
+        responsibleUser: {
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            id: number;
+            email: string;
+            password: string;
+            fullName: string;
+            role: import("@prisma/client").$Enums.UserRole;
+        } | null;
     } & {
         createdAt: Date;
         updatedAt: Date;

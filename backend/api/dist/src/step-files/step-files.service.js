@@ -50,6 +50,13 @@ let StepFilesService = class StepFilesService {
                 version: true,
                 uploadedAt: true,
                 uploadedById: true,
+                uploadedBy: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                    },
+                },
             },
         });
     }

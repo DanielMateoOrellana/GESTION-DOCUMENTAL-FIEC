@@ -1,17 +1,23 @@
-import { useState } from 'react';
-import { ProcessInstance, User, ProcessType, ProcessTemplate, StepTemplate } from '../types';
+import { useState, useEffect } from 'react';
+// import { ProcessInstance, User, ProcessType, ProcessTemplate, StepTemplate } from '../types'; // OLD TYPES
 import { 
-  mockProcessInstances, 
-  mockProcessTypes,
-  mockUsers,
-  mockProcessTemplates,
-  mockStepTemplates,
-  getProcessTypeById,
-  getUserById,
-  getProgressForProcess
-} from '../data/mockData';
+  fetchProcessInstances, 
+  createProcessInstance,
+  ProcessInstance 
+} from '../api/processInstances';
+import { 
+  fetchProcessTypes, 
+  ProcessType 
+} from '../api/processTypes';
+import { 
+  fetchProcessTemplates, 
+  ProcessTemplate 
+} from '../api/processTemplates';
+import { AuthUser } from '../api/auth';
+import { User as UserType } from '../types'; // Keep for prop type compatibility if needed, but ideally switch to AuthUser
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -19,35 +25,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Progress } from './ui/progress';
 import { ProcessTemplateSelector } from './ProcessTemplateSelector';
 import { Search, Filter, Plus, Eye, X, FileText, Trash2, GripVertical } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { createProcessType } from '../api/processTypes';
+import { createProcessTemplate } from '../api/processTemplates';
 import { Switch } from './ui/switch';
-import { mockRoles } from '../data/mockData';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+
+const AVAILABLE_ROLES = ["PROFESOR", "SECRETARIA", "DECANO", "GESTOR", "ADMIN"];
+
+// removed mockRoles
 
 interface ProcessListProps {
-  currentUser: User;
+  currentUser: AuthUser;
   onViewChange: (view: string, data?: any) => void;
 }
 
 interface TemplateStep {
   id: string;
-  ord: number;
-  title: string;
+  order: number;
+  name: string;
   description: string;
-  required: boolean;
-  reviewer_role_id: number;
+  isMandatory: boolean;
+  responsibleRole: string;
 }
 
-// Mock tags for filtering
-const mockTags = [
-  { id: 1, name: 'Urgente', color: '#EF4444' },
-  { id: 2, name: 'Prioritario', color: '#F59E0B' },
-  { id: 3, name: 'Revisado', color: '#10B981' },
-  { id: 4, name: 'En Espera', color: '#6B7280' },
-  { id: 5, name: 'Completado', color: '#3B82F6' }
-];
+// Mock tags for filtering (Still mock for now as backend doesn't seem to have tags yet)
+// Tags feature temporarily disabled until backend implementation
+const availableTags: {id: number, name: string, color: string}[] = [];
 
 const MONTHS = [
   { value: '1', label: 'Enero' },
@@ -65,6 +72,12 @@ const MONTHS = [
 ];
 
 export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
+  // Data State
+  const [processes, setProcesses] = useState<ProcessInstance[]>([]);
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterMonth, setFilterMonth] = useState<string>('all');
@@ -77,6 +90,33 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   const [showNewProcessTypeModal, setShowNewProcessTypeModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // To force re-render
   
+  // New Filters for separate tabs
+  const [typeSearch, setTypeSearch] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateTypeFilter, setTemplateTypeFilter] = useState('all');
+  
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [procData, typesData, templData] = await Promise.all([
+          fetchProcessInstances(),
+          fetchProcessTypes(),
+          fetchProcessTemplates()
+        ]);
+        setProcesses(procData);
+        setProcessTypes(typesData);
+        setTemplates(templData);
+      } catch (error) {
+        toast.error('Error al cargar datos');
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [refreshKey]);
+  
   // New Process Type Form
   const [newProcessTypeName, setNewProcessTypeName] = useState('');
   const [newProcessTypeCode, setNewProcessTypeCode] = useState('');
@@ -85,16 +125,25 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   // New Template Form - Phase 1: Basic Info
   const [templatePhase, setTemplatePhase] = useState<1 | 2>(1);
   const [newTemplateProcessTypeId, setNewTemplateProcessTypeId] = useState<number | null>(null);
+  const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
   const [templateSteps, setTemplateSteps] = useState<TemplateStep[]>([]);
 
-  const filteredProcesses = mockProcessInstances.filter(process => {
+  const filteredProcesses = processes.filter(process => {
     const matchesSearch = process.title?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesYear = filterYear === 'all' || process.year.toString() === filterYear;
-    const matchesMonth = filterMonth === 'all' || process.month.toString() === filterMonth;
-    const matchesState = filterState === 'all' || process.state === filterState;
-    const matchesType = filterType === 'all' || process.process_type_id.toString() === filterType;
-    const matchesResponsible = filterResponsible === 'all' || process.responsible_user_id.toString() === filterResponsible;
+    const yearStr = process.year ? process.year.toString() : '';
+    const matchesYear = filterYear === 'all' || yearStr === filterYear;
+    
+    const monthStr = process.month ? process.month.toString() : '';
+    const matchesMonth = filterMonth === 'all' || monthStr === filterMonth;
+    
+    // Mapping state: Backend uses PENDIENTE/COMPLETADO. Frontend filters might need adjustment.
+    // For now, simple check.
+    const matchesState = filterState === 'all' || process.estado === filterState;
+    
+    const matchesType = filterType === 'all' || process.processTypeId.toString() === filterType;
+    
+    const matchesResponsible = filterResponsible === 'all' || (process.responsibleUserId && process.responsibleUserId.toString() === filterResponsible);
     
     // Tag filtering (mock - in real app would check process_tags table)
     const matchesTags = selectedTags.length === 0 || selectedTags.some(tagId => {
@@ -131,20 +180,30 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const years = Array.from(new Set(mockProcessInstances.map(p => p.year))).sort((a, b) => b - a);
+  const years = Array.from(new Set(processes.map(p => p.year).filter(y => y !== null) as number[])).sort((a, b) => b - a);
 
-  const handleCreateProcess = (processTypeId: number, templateId: number) => {
-    // Create new process and redirect to detail
-    const newProcessId = Math.max(...mockProcessInstances.map(p => p.id)) + 1;
-    const processType = getProcessTypeById(processTypeId);
-    
-    toast.success(`Proceso "${processType?.name}" creado exitosamente`);
-    setShowNewProcessModal(false);
-    
-    // Redirect to process detail
-    setTimeout(() => {
-      onViewChange('process-detail', { processId: 1 }); // Using mock process for demo
-    }, 500);
+  const handleCreateProcess = async (processTypeId: number, templateId: number) => {
+    try {
+      const processType = processTypes.find(pt => pt.id === processTypeId);
+      const template = templates.find(t => t.id === templateId);
+      
+      const title = `${processType?.name || 'Proceso'} - ${template?.name || 'Nuevo'}`;
+      
+      await createProcessInstance({
+        processTypeId,
+        templateId,
+        title,
+        year: new Date().getFullYear(),
+        month: new Date().getMonth() + 1
+      });
+
+      setRefreshKey((prev: number) => prev + 1);
+      toast.success("Proceso creado exitosamente");
+      setShowNewProcessModal(false);
+    } catch (error) {
+      console.error('Error creating process:', error);
+      toast.error("Error al crear el proceso");
+    }
   };
 
   const handleToggleTag = (tagId: number) => {
@@ -185,22 +244,19 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   };
 
   // Helper function to get tags for a process (mock data)
-  const getProcessTags = (processId: number) => {
-    if (processId === 1) return [mockTags[0], mockTags[1]]; // Urgente, Prioritario
-    if (processId === 2) return [mockTags[2]]; // Revisado
-    if (processId === 3) return [mockTags[4]]; // Completado
-    if (processId === 4) return [mockTags[3]]; // En Espera
+  // Helper function to get tags for a process (mock data removed)
+  const getProcessTags = (processId: number): { id: number; name: string; color: string }[] => {
     return [];
   };
 
   const handleAddStep = () => {
     const newStep: TemplateStep = {
       id: `temp-${Date.now()}`,
-      ord: templateSteps.length + 1,
-      title: '',
+      order: templateSteps.length + 1,
+      name: '',
       description: '',
-      required: false,
-      reviewer_role_id: 2 // Default to Secretaría
+      isMandatory: true,
+      responsibleRole: 'PROFESOR'
     };
     setTemplateSteps([...templateSteps, newStep]);
   };
@@ -214,7 +270,7 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
   const handleRemoveStep = (id: string) => {
     const filtered = templateSteps.filter(step => step.id !== id);
     // Reorder
-    setTemplateSteps(filtered.map((step, idx) => ({ ...step, ord: idx + 1 })));
+    setTemplateSteps(filtered.map((step, idx) => ({ ...step, order: idx + 1 })));
   };
 
   const handleMoveStep = (id: string, direction: 'up' | 'down') => {
@@ -227,124 +283,137 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
     
-    // Update ord
+    // Update order
     newSteps.forEach((step, idx) => {
-      step.ord = idx + 1;
+      step.order = idx + 1;
     });
     
     setTemplateSteps(newSteps);
   };
 
   const handleNextPhase = () => {
-    if (!newTemplateProcessTypeId || !newTemplateDescription) {
-      toast.error('Por favor complete el tipo de proceso y descripción');
+    if (!newTemplateProcessTypeId || !newTemplateName || !newTemplateDescription) {
+      toast.error('Por favor complete todos los campos requeridos');
       return;
     }
     setTemplatePhase(2);
   };
 
-  const handleSaveTemplate = (publish: boolean = false) => {
+  const handleSaveTemplate = async (publish: boolean = false) => {
+    if (!newTemplateName) {
+        toast.error('La plantilla debe tener un nombre');
+        return;
+    }
     if (templateSteps.length === 0) {
       toast.error('La plantilla debe tener al menos un paso');
       return;
     }
 
-    // Validate all steps have title and description
-    const invalidSteps = templateSteps.filter(step => !step.title || !step.description);
+    // Validate all steps have name and description
+    const invalidSteps = templateSteps.filter(step => !step.name || !step.description);
     if (invalidSteps.length > 0) {
       toast.error('Todos los pasos deben tener título y descripción');
       return;
     }
 
-    // Validate at least one required step when publishing
+    // Validate at least one mandatory step when publishing
     if (publish) {
-      const hasRequiredStep = templateSteps.some(step => step.required);
-      if (!hasRequiredStep) {
+      const hasMandatoryStep = templateSteps.some(step => step.isMandatory);
+      if (!hasMandatoryStep) {
         toast.error('Debe haber al menos un paso obligatorio para publicar');
         return;
       }
     }
 
-    const newTemplate: ProcessTemplate = {
-      id: Math.max(...mockProcessTemplates.map(t => t.id)) + 1,
-      process_type_id: newTemplateProcessTypeId!,
-      description: newTemplateDescription,
-      version: 1,
-      is_published: publish,
-      created_by: currentUser.id,
-      created_at: new Date().toISOString()
-    };
+    try {
+      await createProcessTemplate({
+        name: newTemplateName,
+        processTypeId: newTemplateProcessTypeId!,
+        description: newTemplateDescription,
+        isActive: publish,
+        steps: templateSteps.map(s => ({
+          name: s.name,
+          order: s.order,
+          description: s.description,
+          responsibleRole: s.responsibleRole,
+          isMandatory: s.isMandatory
+        }))
+      });
 
-    mockProcessTemplates.push(newTemplate);
+      const processType = processTypes.find(pt => pt.id === newTemplateProcessTypeId);
+      
+      toast.success(
+        publish 
+          ? `Plantilla para "${processType?.name}" creada y activada exitosamente`
+          : `Plantilla para "${processType?.name}" guardada exitosamente`
+      );
+      
+      // Reset form
+      setTemplatePhase(1);
+      setNewTemplateProcessTypeId(null);
+      setNewTemplateName('');
+      setNewTemplateDescription('');
+      setTemplateSteps([]);
+      setShowNewTemplateModal(false);
+      setRefreshKey((prev: number) => prev + 1);
 
-    // Create step templates
-    const newStepTemplates: StepTemplate[] = templateSteps.map((step, index) => ({
-      id: Math.max(...mockStepTemplates.map(s => s.id), 0) + index + 1,
-      template_id: newTemplate.id,
-      ord: step.ord,
-      title: step.title,
-      description: step.description,
-      required: step.required,
-      reviewer_role_id: step.reviewer_role_id,
-      created_at: new Date().toISOString()
-    }));
-
-    mockStepTemplates.push(...newStepTemplates);
-
-    const processType = mockProcessTypes.find(pt => pt.id === newTemplateProcessTypeId);
-    
-    toast.success(
-      publish 
-        ? `Plantilla "${processType?.name}" creada y publicada exitosamente`
-        : `Plantilla "${processType?.name}" guardada como borrador`
-    );
-    
-    // Reset form
-    setTemplatePhase(1);
-    setNewTemplateProcessTypeId(null);
-    setNewTemplateDescription('');
-    setTemplateSteps([]);
-    setShowNewTemplateModal(false);
-    setRefreshKey(prev => prev + 1); // Force re-render
+    } catch (error) {
+      console.error('Failed to create template:', error);
+      toast.error('Error al crear la plantilla');
+    }
   };
 
   const handleCloseTemplateModal = () => {
     setTemplatePhase(1);
     setNewTemplateProcessTypeId(null);
+    setNewTemplateName('');
     setNewTemplateDescription('');
     setTemplateSteps([]);
     setShowNewTemplateModal(false);
   };
 
-  const getRoleName = (id: number) => {
-    return mockRoles.find(r => r.id === id)?.name || 'Desconocido';
-  };
 
-  const handleCreateProcessType = () => {
+
+
+  const filteredProcessTypes = processTypes.filter(type => 
+    type.name.toLowerCase().includes(typeSearch.toLowerCase()) ||
+    type.description.toLowerCase().includes(typeSearch.toLowerCase())
+  );
+
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = template.name?.toLowerCase().includes(templateSearch.toLowerCase()) || 
+                         template.description.toLowerCase().includes(templateSearch.toLowerCase());
+    const matchesType = templateTypeFilter === 'all' || template.processTypeId.toString() === templateTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const handleCreateProcessType = async () => {
     if (!newProcessTypeName || !newProcessTypeCode || !newProcessTypeDescription) {
       toast.error('Por favor complete todos los campos');
       return;
     }
 
-    const newType: ProcessType = {
-      id: Math.max(...mockProcessTypes.map(t => t.id)) + 1,
-      code: newProcessTypeCode.toUpperCase(),
-      name: newProcessTypeName,
-      description: newProcessTypeDescription,
-      active: true,
-      created_by: currentUser.id,
-      created_at: new Date().toISOString()
-    };
+    try {
+      await createProcessType({
+        name: newProcessTypeName,
+        description: newProcessTypeDescription,
+        categoryId: 1, // Default category for now
+        isActive: true
+      });
 
-    mockProcessTypes.push(newType);
-    toast.success(`Tipo de proceso "${newProcessTypeName}" creado exitosamente`);
-    
-    // Reset form
-    setNewProcessTypeName('');
-    setNewProcessTypeCode('');
-    setNewProcessTypeDescription('');
-    setShowNewProcessTypeModal(false);
-    setRefreshKey(prev => prev + 1); // Force re-render
+      toast.success(`Tipo de proceso "${newProcessTypeName}" creado exitosamente`);
+      
+      // Reset form
+      setNewProcessTypeName('');
+      setNewProcessTypeCode('');
+      setNewProcessTypeDescription('');
+      setShowNewProcessTypeModal(false);
+      setRefreshKey((prev: number) => prev + 1); // Force re-render
+
+    } catch (error) {
+      console.error('Failed to create process type:', error);
+      toast.error('Error al crear el tipo de proceso');
+    }
   };
 
   const handleCloseProcessTypeModal = () => {
@@ -379,365 +448,345 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Filtros de Búsqueda</CardTitle>
-            {activeFiltersCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleClearFilters}>
-                <X className="w-4 h-4 mr-1" />
-                Limpiar Filtros ({activeFiltersCount})
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* First row: Search, Year, Month, Type, State, Responsible */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar procesos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+
+            <Tabs defaultValue="processes" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="processes">Mis Procesos</TabsTrigger>
+          <TabsTrigger value="types">Tipos de Proceso</TabsTrigger>
+          <TabsTrigger value="templates">Plantillas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="processes">
+          {/* Filters for Processes */}
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar proceso..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Año" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {years.map(y => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Mes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {MONTHS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={filterState} onValueChange={setFilterState}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los estados</SelectItem>
+                      {Object.keys(statusLabels).map(key => (
+                        <SelectItem key={key} value={key}>{statusLabels[key]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Tipo de Proceso" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los tipos</SelectItem>
+                      {processTypes.filter(t => t.isActive).map(type => (
+                        <SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterResponsible} onValueChange={setFilterResponsible}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Responsable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {Array.from(new Set(processes.map(p => p.responsibleUser).filter(u => u != null))).map(user => (
+                        <SelectItem key={user!.id} value={user!.id.toString()}>{user!.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button variant="ghost" size="icon" onClick={handleClearFilters} title="Limpiar filtros">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              
-              <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Año" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los años</SelectItem>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            </CardContent>
+          </Card>
 
-              <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Mes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los meses</SelectItem>
-                  {MONTHS.map(month => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tipo de Proceso" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los tipos</SelectItem>
-                  {mockProcessTypes.map(type => (
-                    <SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filterState} onValueChange={setFilterState}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="DRAFT">Borrador</SelectItem>
-                  <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
-                  <SelectItem value="PENDING_APPROVAL">Pendiente</SelectItem>
-                  <SelectItem value="APPROVED">Aprobado</SelectItem>
-                  <SelectItem value="CLOSED">Cerrado</SelectItem>
-                  <SelectItem value="ARCHIVED">Archivado</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filterResponsible} onValueChange={setFilterResponsible}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Responsable" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los responsables</SelectItem>
-                  {mockUsers.filter(u => u.is_active).map(user => (
-                    <SelectItem key={user.id} value={user.id.toString()}>{user.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Second row: Tags filter */}
-            <div>
-              <div className="text-sm mb-2 text-muted-foreground">Filtrar por Etiquetas:</div>
-              <div className="flex flex-wrap gap-2">
-                {mockTags.map(tag => {
-                  const isSelected = selectedTags.includes(tag.id);
-                  return (
-                    <Badge
-                      key={tag.id}
-                      style={{ 
-                        backgroundColor: isSelected ? tag.color : 'transparent',
-                        color: isSelected ? '#fff' : tag.color,
-                        borderColor: tag.color,
-                        borderWidth: '1px',
-                        borderStyle: 'solid'
-                      }}
-                      className="cursor-pointer hover:opacity-80 flex items-center gap-1"
-                      onClick={() => handleToggleTag(tag.id)}
-                    >
-                      {tag.name}
-                      {isSelected && (
-                        <X 
-                          className="w-3 h-3" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveTag(tag.id);
-                          }}
-                        />
-                      )}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Selected tags display */}
-            {selectedTags.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Filter className="w-4 h-4" />
-                <span>Mostrando procesos con {selectedTags.length} etiqueta(s) seleccionada(s)</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Procesos ({filteredProcesses.length})</CardTitle>
-          <CardDescription>
-            {filteredProcesses.length === mockProcessInstances.length 
-              ? 'Lista completa de procesos institucionales'
-              : `${filteredProcesses.length} de ${mockProcessInstances.length} procesos mostrados`
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredProcesses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Filter className="w-12 h-12 mx-auto mb-4" />
-              <p>No se encontraron procesos con los filtros aplicados</p>
-              <Button variant="outline" className="mt-4" onClick={handleClearFilters}>
-                Limpiar Filtros
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo de Proceso</TableHead>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Etiquetas</TableHead>
-                  <TableHead>Progreso</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProcesses.map(process => {
-                  const processType = getProcessTypeById(process.process_type_id);
-                  const responsible = getUserById(process.responsible_user_id);
-                  const progress = getProgressForProcess(process.id);
-                  const processTags = getProcessTags(process.id);
-
-                  return (
-                    <TableRow key={process.id} className="hover:bg-accent/50">
-                      <TableCell>{processType?.name}</TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {process.title || `${processType?.name} ${process.year}-${process.month}`}
-                      </TableCell>
-                      <TableCell>{formatDate(process.year, process.month)}</TableCell>
-                      <TableCell>{responsible?.full_name}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(process.state)}>
-                          {statusLabels[process.state] || process.state}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {processTags.length > 0 ? (
-                            processTags.map(tag => (
-                              <Badge
-                                key={tag.id}
-                                style={{
-                                  backgroundColor: tag.color,
-                                  color: '#fff'
-                                }}
-                                className="text-xs"
-                              >
-                                {tag.name}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {progress && (
-                          <div className="flex items-center gap-2 min-w-[120px]">
-                            <Progress value={progress.progress_percent} className="h-2 flex-1" />
-                            <span className="text-xs text-muted-foreground w-10 text-right">
-                              {progress.progress_percent}%
-                            </span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onViewChange('process-detail', { processId: process.id })}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Ver
-                        </Button>
-                      </TableCell>
+          {/* Processes Table */}
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : filteredProcesses.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="w-12 h-12 mx-auto mb-4" />
+                   <p>No se encontraron procesos</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Título</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Plantilla</TableHead>
+                      <TableHead>Fecha Creación</TableHead>
+                      <TableHead>Responsable</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Tags</TableHead>
+                      <TableHead>Progreso</TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProcesses.map((process) => {
+                      const completedSteps = process.steps?.filter(s => s.estado === 'COMPLETADO').length || 0;
+                      const totalSteps = process.steps?.length || 0;
+                      const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                      const processTags = getProcessTags(process.id);
+                      const responsible = process.responsibleUser; // Now using included relation
 
-      {/* Process Types Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tipos de Procesos ({mockProcessTypes.filter(t => t.active).length})</CardTitle>
-          <CardDescription>
-            Catálogo de tipos de procesos definidos en el sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockProcessTypes.filter(t => t.active).map(type => {
-              const templatesCount = mockProcessTemplates.filter(t => t.process_type_id === type.id).length;
-              const processesCount = mockProcessInstances.filter(p => p.process_type_id === type.id).length;
-              
-              return (
-                <Card key={type.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{type.name}</CardTitle>
-                      <Badge variant="outline">{type.code}</Badge>
-                    </div>
-                    <CardDescription>{type.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <FileText className="w-4 h-4 text-muted-foreground" />
-                        <span>{templatesCount} plantillas</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span>{processesCount} procesos</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                      return (
+                        <TableRow key={process.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{process.title}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(process.year || 0, process.month || 0)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{process.processType?.name || 'Unknown'}</TableCell>
+                          <TableCell>{process.template?.name || 'Custom'}</TableCell>
+                          <TableCell>{new Date(process.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>{responsible?.fullName || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(process.estado)}>
+                              {statusLabels[process.estado] || process.estado}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                                <span className="text-xs text-muted-foreground">—</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <Progress value={progressPercent} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground w-10 text-right">
+                                {progressPercent}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onViewChange('process-detail', { processId: process.id })}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Ver
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Templates Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Plantillas de Procesos ({mockProcessTemplates.length})</CardTitle>
-          <CardDescription>
-            Plantillas configuradas disponibles para crear procesos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {mockProcessTemplates.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="w-12 h-12 mx-auto mb-4" />
-                <p>No hay plantillas creadas</p>
-                <Button variant="outline" className="mt-4" onClick={() => setShowNewTemplateModal(true)}>
+        <TabsContent value="types">
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar tipo de proceso..."
+                            className="pl-8"
+                            value={typeSearch}
+                            onChange={(e) => setTypeSearch(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tipos de Procesos ({filteredProcessTypes.length})</CardTitle>
+              <CardDescription>Catálogo de tipos de procesos definidos</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+               <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Estadísticas</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredProcessTypes.map(type => {
+                        const templatesCount = templates.filter(t => t.processTypeId === type.id).length;
+                        const processesCount = processes.filter(p => p.processTypeId === type.id).length;
+                        return (
+                            <TableRow key={type.id}>
+                                <TableCell>#{type.id}</TableCell>
+                                <TableCell className="font-medium">{type.name}</TableCell>
+                                <TableCell>{type.description}</TableCell>
+                                <TableCell>
+                                    <Badge variant={type.isActive ? 'default' : 'secondary'}>
+                                        {type.isActive ? 'Activo' : 'Inactivo'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                        <span>{templatesCount} plantillas</span>
+                                        <span>{processesCount} procesos</span>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
+                    {filteredProcessTypes.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                No se encontraron tipos de proceso
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar plantilla..."
+                            className="pl-8"
+                            value={templateSearch}
+                            onChange={(e) => setTemplateSearch(e.target.value)}
+                        />
+                    </div>
+                    {/* Backend Data Filter: Process Types */}
+                    <Select value={templateTypeFilter} onValueChange={setTemplateTypeFilter}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filtrar por Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los Tipos</SelectItem>
+                             {processTypes.map(type => (
+                                <SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>
+                              ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardContent>
+          </Card>
+
+           <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Plantillas de Procesos ({filteredTemplates.length})</CardTitle>
+                  <CardDescription>Plantillas configuradas para crear procesos</CardDescription>
+                </div>
+                <Button onClick={() => setShowNewTemplateModal(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Crear Primera Plantilla
+                  Nueva Plantilla
                 </Button>
               </div>
-            ) : (
-              mockProcessTemplates.map(template => {
-                const processType = mockProcessTypes.find(pt => pt.id === template.process_type_id);
-                const steps = mockStepTemplates.filter(s => s.template_id === template.id).sort((a, b) => a.ord - b.ord);
-                const requiredCount = steps.filter(s => s.required).length;
-                
-                return (
-                  <Card key={template.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-base">
-                            {processType?.name || 'Tipo Desconocido'}
-                          </CardTitle>
-                          <CardDescription>{template.description}</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={template.is_published ? "default" : "secondary"}>
-                            {template.is_published ? 'Publicada' : 'Borrador'}
-                          </Badge>
-                          <Badge variant="outline">v{template.version}</Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                          <span>{steps.length} pasos</span>
-                          <span>{requiredCount} obligatorios</span>
-                          <span>Creada {new Date(template.created_at).toLocaleDateString()}</span>
-                        </div>
-                        {steps.map(step => (
-                          <div key={step.id} className="flex items-start gap-3 p-2 bg-secondary rounded-lg">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm">
-                              {step.ord}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span>{step.title}</span>
-                                {step.required && (
-                                  <Badge variant="destructive" className="text-xs">Obligatorio</Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Revisor: {getRoleName(step.reviewer_role_id)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent className="p-0">
+               <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Tipo de Proceso</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Pasos</TableHead>
+                        <TableHead>Fecha Creación</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredTemplates.map(template => {
+                         const processType = template.processType || processTypes.find(pt => pt.id === template.processTypeId);
+                         const steps = template.steps || [];
+                         const requiredCount = steps.filter(s => s.isMandatory).length;
+
+                        return (
+                            <TableRow key={template.id}>
+                                <TableCell className="font-medium">{template.name || 'Sin nombre'}</TableCell>
+                                <TableCell>{processType?.name || 'Desconocido'}</TableCell>
+                                <TableCell className="max-w-[300px] truncate" title={template.description}>{template.description}</TableCell>
+                                <TableCell>
+                                     <Badge variant={template.isActive ? "default" : "secondary"}>
+                                        {template.isActive ? 'Activa' : 'Inactiva'}
+                                      </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="text-sm">
+                                        {steps.length} pasos ({requiredCount} obligatorios)
+                                    </div>
+                                </TableCell>
+                                <TableCell>{new Date(template.createdAt).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                        )
+                    })}
+                     {filteredTemplates.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                                No se encontraron plantillas.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <ProcessTemplateSelector
         key={refreshKey}
@@ -772,13 +821,23 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                       <SelectValue placeholder="Seleccione un tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockProcessTypes.filter(t => t.active).map(type => (
+                      {processTypes.filter(t => t.isActive).map(type => (
                         <SelectItem key={type.id} value={type.id.toString()}>
                           {type.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="template-name">Nombre de la Plantilla *</Label>
+                  <Input
+                    id="template-name"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="Ej. Solicitud de Vacaciones 2024"
+                  />
                 </div>
 
                 <div>
@@ -818,11 +877,11 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                             <GripVertical className="w-4 h-4" />
                           </Button>
                         </div>
-                        <Badge>{step.ord}</Badge>
+                        <Badge>{step.order}</Badge>
                         <Input
                           placeholder="Título del paso *"
-                          value={step.title}
-                          onChange={(e) => handleUpdateStep(step.id, 'title', e.target.value)}
+                          value={step.name}
+                          onChange={(e) => handleUpdateStep(step.id, 'name', e.target.value)}
                         />
                         <Button
                           size="sm"
@@ -843,28 +902,28 @@ export function ProcessList({ currentUser, onViewChange }: ProcessListProps) {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <Switch
-                            checked={step.required}
-                            onCheckedChange={(checked) => handleUpdateStep(step.id, 'required', checked)}
+                            checked={step.isMandatory}
+                            onCheckedChange={(checked) => handleUpdateStep(step.id, 'isMandatory', checked)}
                           />
                           <Label className="text-sm">Obligatorio</Label>
                         </div>
 
                         <div className="flex-1">
-                          <Select
-                            value={step.reviewer_role_id.toString()}
-                            onValueChange={(value) => handleUpdateStep(step.id, 'reviewer_role_id', parseInt(value))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mockRoles.map(role => (
-                                <SelectItem key={role.id} value={role.id.toString()}>
-                                  Revisor: {role.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <Select
+                              value={step.responsibleRole}
+                              onValueChange={(value) => handleUpdateStep(step.id, 'responsibleRole', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {AVAILABLE_ROLES.map(role => (
+                                  <SelectItem key={role} value={role}>
+                                    Revisor: {role}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                         </div>
                       </div>
                     </div>

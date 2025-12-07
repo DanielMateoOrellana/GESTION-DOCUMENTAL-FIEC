@@ -4,7 +4,7 @@ import type { Express } from 'express';
 
 @Injectable()
 export class StepFilesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async upload(stepId: number, file: Express.Multer.File, userId?: number) {
     // última versión + 1
@@ -45,6 +45,13 @@ export class StepFilesService {
         version: true,
         uploadedAt: true,
         uploadedById: true,
+        uploadedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
       },
     });
   }

@@ -20,14 +20,14 @@ import {
 import { Checkbox } from './ui/checkbox';
 import { Plus, Edit, Eye } from 'lucide-react';
 import type { User } from '../types';
-import { mockProcessTypes } from '../data/mockData';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { CreateTemplateModal } from './CreateTemplateModal';
 
 import {
   fetchProcessTemplates,
   type ProcessTemplate,
 } from '../api/processTemplates';
+import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
 
 interface TemplateManagerSimpleProps {
   currentUser: User;
@@ -40,23 +40,28 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadTemplates = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await fetchProcessTemplates();
-      setTemplates(data);
+      const [templatesData, typesData] = await Promise.all([
+        fetchProcessTemplates(),
+        fetchProcessTypes()
+      ]);
+      setTemplates(templatesData);
+      setProcessTypes(typesData);
     } catch (error) {
       console.error(error);
-      toast.error('Error al cargar plantillas');
+      toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTemplates();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -137,7 +142,7 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
-                {mockProcessTypes.map((type) => (
+                {processTypes.map((type) => (
                   <SelectItem key={type.id} value={type.id.toString()}>
                     {type.name}
                   </SelectItem>
@@ -263,7 +268,7 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
         open={isCreateModalOpen}
         onClose={async () => {
           setIsCreateModalOpen(false);
-          await loadTemplates();
+          await loadData();
         }}
       />
     </div>

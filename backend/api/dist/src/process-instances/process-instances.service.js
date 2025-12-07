@@ -62,6 +62,7 @@ let ProcessInstancesService = class ProcessInstancesService {
                 processType: true,
                 template: true,
                 steps: true,
+                responsibleUser: true,
             },
             orderBy: { id: 'desc' },
         });
@@ -70,6 +71,7 @@ let ProcessInstancesService = class ProcessInstancesService {
         const instance = await this.prisma.processInstance.findUnique({
             where: { id },
             include: {
+                responsibleUser: true,
                 processType: true,
                 template: {
                     include: { processType: true },

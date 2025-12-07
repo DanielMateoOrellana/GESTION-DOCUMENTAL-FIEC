@@ -21,6 +21,11 @@ export declare class StepFilesService {
         version: number;
         uploadedById: number | null;
         uploadedAt: Date;
+        uploadedBy: {
+            id: number;
+            email: string;
+            fullName: string;
+        } | null;
     }[]>;
     getFile(stepId: number, fileId: number): Promise<{
         id: number;

@@ -5,7 +5,7 @@ import { EstadoProceso, EstadoPaso } from '@prisma/client';
 
 @Injectable()
 export class ProcessInstancesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateProcessInstanceDto, userId: number) {
     // 1) Buscar la plantilla con sus pasos
@@ -61,6 +61,7 @@ export class ProcessInstancesService {
         processType: true,
         template: true,
         steps: true,
+        responsibleUser: true,
       },
       orderBy: { id: 'desc' },
     });
@@ -70,6 +71,7 @@ export class ProcessInstancesService {
     const instance = await this.prisma.processInstance.findUnique({
       where: { id },
       include: {
+        responsibleUser: true,
         processType: true,
         template: {
           include: { processType: true },

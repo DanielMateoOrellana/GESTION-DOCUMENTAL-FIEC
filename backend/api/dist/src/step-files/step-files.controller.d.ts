@@ -3,7 +3,7 @@ import type { Response } from 'express';
 export declare class StepFilesController {
     private readonly stepFilesService;
     constructor(stepFilesService: StepFilesService);
-    uploadFile(stepId: number, file: Express.Multer.File): Promise<{
+    uploadFile(stepId: number, file: Express.Multer.File, req: any): Promise<{
         id: number;
         stepId: number;
         originalName: string;
@@ -22,6 +22,11 @@ export declare class StepFilesController {
         version: number;
         uploadedById: number | null;
         uploadedAt: Date;
+        uploadedBy: {
+            id: number;
+            email: string;
+            fullName: string;
+        } | null;
     }[]>;
     downloadFile(stepId: number, fileId: number, res: Response): Promise<void>;
 }

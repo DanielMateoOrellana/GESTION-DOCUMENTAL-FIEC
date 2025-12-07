@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   BadRequestException,
   Res,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -16,7 +17,7 @@ import type { Response } from 'express';
 
 @Controller('steps')
 export class StepFilesController {
-  constructor(private readonly stepFilesService: StepFilesService) {}
+  constructor(private readonly stepFilesService: StepFilesService) { }
 
   @Post(':stepId/files')
   @UseInterceptors(
@@ -28,13 +29,13 @@ export class StepFilesController {
   async uploadFile(
     @Param('stepId', ParseIntPipe) stepId: number,
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('Se requiere un archivo (campo "file")');
     }
 
-    // TODO: sacar user real de JWT
-    const userId = 1;
+    const userId = req.user?.id;
 
     return this.stepFilesService.upload(stepId, file, userId);
   }

@@ -20,7 +20,7 @@ async function bootstrap() {
         },
     }));
     await app.listen(4000);
-    console.log('Backend escuchando en http://localhost:3000');
+    console.log('Backend escuchando en http://localhost:4000');
 }
 bootstrap();
 //# sourceMappingURL=main.js.map
