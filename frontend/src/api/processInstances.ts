@@ -64,6 +64,7 @@ export type CreateProcessInstanceInput = {
   comment?: string;
   year?: number;
   month?: number;
+  dueAt?: string;
   // 🚫 fuera: responsibleUserId
 };
 

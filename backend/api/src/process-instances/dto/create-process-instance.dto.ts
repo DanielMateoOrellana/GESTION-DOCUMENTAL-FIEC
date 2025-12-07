@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, IsISO8601 } from 'class-validator';
 
 export class CreateProcessInstanceDto {
   @IsInt()
@@ -21,5 +21,11 @@ export class CreateProcessInstanceDto {
 
   @IsOptional()
   @IsInt()
+  @IsOptional()
+  @IsInt()
   month?: number; // 1-12
+
+  @IsOptional()
+  @IsISO8601()
+  dueAt?: string;
 }

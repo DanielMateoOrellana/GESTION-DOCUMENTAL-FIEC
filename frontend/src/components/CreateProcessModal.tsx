@@ -22,8 +22,18 @@ import { Checkbox } from "./ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { User } from "../types";
-import { toast } from "sonner@2.0.3";
-import { FileText, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
+import { FileText, CheckCircle, Calendar as CalendarIcon } from "lucide-react";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./ui/popover";
+import { Calendar } from "./ui/calendar";
+import { cn } from "./ui/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 import type { ProcessType } from "../api/processTypes";
 import { fetchProcessTypes } from "../api/processTypes";
@@ -58,46 +68,16 @@ export function CreateProcessModal({
   const [processTitle, setProcessTitle] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [month, setMonth] = useState((new Date().getMonth() + 1).toString());
+  const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Cargar tipos de proceso y plantillas desde el backend cuando se abre el modal
-  useEffect(() => {
-    if (!open) return;
+  // ... (useEffect omitted)
 
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [types, templatesFromApi] = await Promise.all([
-          fetchProcessTypes(),
-          fetchProcessTemplates(),
-        ]);
+  // ... (availableTemplates omitted)
 
-        setProcessTypes(types.filter((t) => t.isActive));
-        setTemplates(templatesFromApi);
-      } catch (error) {
-        console.error(error);
-        toast.error("Error al cargar tipos de proceso o plantillas");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [open]);
-
-  // Filtrar plantillas según el tipo de proceso seleccionado
-  const availableTemplates = templates.filter((t) => {
-    if (!selectedProcessTypeId) return false;
-    const matchesType = t.processTypeId.toString() === selectedProcessTypeId;
-    const matchesActive = showObsoleteTemplates || t.isActive;
-    return matchesType && matchesActive;
-  });
-
-  const selectedTemplate = templates.find(
-    (t) => t.id.toString() === selectedTemplateId
-  );
+  // ... (selectedTemplate omitted)
 
   const handleCreate = async () => {
     if (!selectedProcessTypeId || !selectedTemplateId || !processTitle) {
@@ -115,6 +95,7 @@ export function CreateProcessModal({
         year: Number(year),
         month: Number(month),
         comment: undefined,
+        dueAt: dueAt ? dueAt.toISOString() : undefined,
       };
 
       const newInstance = await createProcessInstance(payload);
@@ -141,6 +122,7 @@ export function CreateProcessModal({
     setProcessTitle("");
     setYear(new Date().getFullYear().toString());
     setMonth((new Date().getMonth() + 1).toString());
+    setDueAt(undefined);
     setShowObsoleteTemplates(false);
   };
 
@@ -166,7 +148,7 @@ export function CreateProcessModal({
               <Label htmlFor="processType">Tipo de proceso *</Label>
               <Select
                 value={selectedProcessTypeId}
-                onValueChange={(value) => {
+                onValueChange={(value: string) => {
                   setSelectedProcessTypeId(value);
                   setSelectedTemplateId("");
                 }}
@@ -193,8 +175,8 @@ export function CreateProcessModal({
                   <Checkbox
                     id="showObsolete"
                     checked={showObsoleteTemplates}
-                    onCheckedChange={(checked) =>
-                      setShowObsoleteTemplates(!!checked)
+                    onCheckedChange={(checked: boolean) =>
+                      setShowObsoleteTemplates(checked)
                     }
                   />
                   <Label
@@ -286,6 +268,42 @@ export function CreateProcessModal({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="flex flex-col space-y-2">
+              <Label>Fecha de Término (Opcional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full pl-3 text-left font-normal",
+                      !dueAt && "text-muted-foreground"
+                    )}
+                  >
+                    {dueAt ? (
+                      format(dueAt, "PPP", { locale: es })
+                    ) : (
+                      <span>Seleccione una fecha</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueAt}
+                    onSelect={setDueAt}
+                    disabled={(date) =>
+                      date < new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-[0.8rem] text-muted-foreground">
+                Esta fecha se aplicará como límite para el proceso y todos sus pasos.
+              </p>
             </div>
           </div>
 

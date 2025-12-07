@@ -36,12 +36,13 @@ export class ProcessInstancesService {
         responsibleUserId: userId,      // <- aquí usamos el usuario logueado
         year: dto.year ?? null,
         month: dto.month ?? null,
+        dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
         steps: {
           create: template.steps.map((s) => ({
             title: s.name,
             estado: EstadoPaso.PENDIENTE,
             templateStepId: s.id,
-            // dueAt lo puedes calcular luego si quieres
+            dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
           })),
         },
       },
