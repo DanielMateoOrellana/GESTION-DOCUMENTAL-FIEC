@@ -322,7 +322,7 @@ export function ProcessListSimple({
                 <TableHead>Estado</TableHead>
                 <TableHead>Progreso</TableHead>
                 <TableHead>Etiquetas</TableHead>
-                <TableHead>Acciones</TableHead>
+                {/* Columna Acciones eliminada */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -343,7 +343,11 @@ export function ProcessListSimple({
                 const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
                 return (
-                  <TableRow key={process.id}>
+                  <TableRow
+                    key={process.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => onViewChange("process-detail", { processId: process.id })}
+                  >
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedItems.includes(process.id)}
@@ -383,7 +387,7 @@ export function ProcessListSimple({
                     </TableCell>
                     <TableCell>
                       {editingTags === process.id ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-wrap gap-1">
                             {allTags.map((tag) => (
                               <Badge
@@ -438,7 +442,10 @@ export function ProcessListSimple({
                       ) : (
                         <div
                           className="flex flex-wrap gap-1 cursor-pointer"
-                          onClick={() => setEditingTags(process.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTags(process.id);
+                          }}
                         >
                           {tags.length > 0 ? (
                             tags.map((tagId) => {
@@ -462,19 +469,6 @@ export function ProcessListSimple({
                           )}
                         </div>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          onViewChange("process-detail", {
-                            processId: process.id,
-                          })
-                        }
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
                     </TableCell>
                   </TableRow>
                 );

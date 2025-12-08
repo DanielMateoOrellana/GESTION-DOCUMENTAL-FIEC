@@ -22,6 +22,7 @@ import { Plus, Edit, Eye } from 'lucide-react';
 import type { User } from '../types';
 import { toast } from 'sonner';
 import { CreateTemplateModal } from './CreateTemplateModal';
+import { EditTemplateModal } from './EditTemplateModal';
 
 import {
   fetchProcessTemplates,
@@ -38,6 +39,8 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
 
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
@@ -239,10 +242,14 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
 
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingTemplateId(template.id);
+                                setIsEditModalOpen(true);
+                              }}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </div>
@@ -270,6 +277,17 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
           setIsCreateModalOpen(false);
           await loadData();
         }}
+      />
+
+      {/* Modal de Edición de Plantilla */}
+      <EditTemplateModal
+        open={isEditModalOpen}
+        templateId={editingTemplateId}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTemplateId(null);
+        }}
+        onTemplateUpdated={loadData}
       />
     </div>
   );

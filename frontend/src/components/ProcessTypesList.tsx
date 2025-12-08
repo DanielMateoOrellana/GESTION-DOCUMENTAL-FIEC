@@ -12,6 +12,7 @@ import {
 import {
   fetchProcessTypes,
   createProcessType,
+  updateProcessType,
   ProcessType as ApiProcessType,
 } from '../api/processTypes';
 
@@ -68,6 +69,14 @@ export function ProcessTypesList({
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeCategory, setNewTypeCategory] = useState(''); // id de categoría como string
   const [newTypeDescription, setNewTypeDescription] = useState('');
+
+  // Estados para edición
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingType, setEditingType] = useState<ApiProcessType | null>(null);
+  const [editTypeName, setEditTypeName] = useState('');
+  const [editTypeCategory, setEditTypeCategory] = useState('');
+  const [editTypeDescription, setEditTypeDescription] = useState('');
+  const [editTypeActive, setEditTypeActive] = useState(true);
 
   const [categories, setCategories] = useState<ProcessCategory[]>([]);
   const [processTypes, setProcessTypes] = useState<ApiProcessType[] | any>([]);
@@ -174,6 +183,48 @@ export function ProcessTypesList({
     }
   };
 
+  const handleUpdateProcessType = async () => {
+    if (!editingType || !editTypeName || !editTypeCategory || !editTypeDescription) {
+      toast.error('Complete todos los campos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: editTypeName,
+        description: editTypeDescription,
+        categoryId: Number(editTypeCategory),
+        isActive: editTypeActive,
+      };
+
+      const updated = await updateProcessType(editingType.id, payload);
+
+      setProcessTypes((prev: any) => {
+        if (!Array.isArray(prev)) return [updated];
+        return prev.map((p) => p.id === updated.id ? updated : p);
+      });
+
+      toast.success(`Tipo de proceso "${editTypeName}" actualizado`);
+      setShowEditModal(false);
+      setEditingType(null);
+    } catch (e) {
+      console.error('[ProcessTypesList] Error actualizando tipo de proceso:', e);
+      toast.error('No se pudo actualizar el tipo de proceso');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditModal = (type: ApiProcessType) => {
+    setEditingType(type);
+    setEditTypeName(type.name);
+    setEditTypeDescription(type.description);
+    setEditTypeCategory(type.categoryId.toString());
+    setEditTypeActive(type.isActive);
+    setShowEditModal(true);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -252,7 +303,11 @@ export function ProcessTypesList({
                     </TableCell>
                     <TableCell>{templatesCount}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditModal(type)}
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -299,7 +354,7 @@ export function ProcessTypesList({
                 value={newTypeCategory}
                 onValueChange={setNewTypeCategory}
               >
-                  <SelectTrigger id="type-category">
+                <SelectTrigger id="type-category">
                   <SelectValue placeholder="Seleccione categoría" />
                 </SelectTrigger>
                 <SelectContent>
@@ -339,7 +394,83 @@ export function ProcessTypesList({
             </Button>
           </DialogFooter>
         </DialogContent>
+
       </Dialog>
-    </div>
+
+      {/* Modal de Edición */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tipo de proceso</DialogTitle>
+            <DialogDescription>
+              Modifica los datos del tipo de proceso
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-type-name">Nombre *</Label>
+              <Input
+                id="edit-type-name"
+                value={editTypeName}
+                onChange={(e) => setEditTypeName(e.target.value)}
+                placeholder="Evaluación Docente"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-type-category">Categoría *</Label>
+              <Select
+                value={editTypeCategory}
+                onValueChange={setEditTypeCategory}
+              >
+                <SelectTrigger id="edit-type-category">
+                  <SelectValue placeholder="Seleccione categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem
+                      key={cat.id}
+                      value={cat.id.toString()}
+                    >
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-type-description">Descripción *</Label>
+              <Textarea
+                id="edit-type-description"
+                value={editTypeDescription}
+                onChange={(e) =>
+                  setEditTypeDescription(e.target.value)
+                }
+                placeholder="Describe el tipo de proceso"
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-active"
+                checked={editTypeActive}
+                onCheckedChange={(c: boolean | "indeterminate") => setEditTypeActive(!!c)}
+              />
+              <Label htmlFor="edit-active">Activo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateProcessType} disabled={loading}>
+              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }

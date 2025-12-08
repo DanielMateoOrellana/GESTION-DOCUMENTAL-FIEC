@@ -29,3 +29,13 @@ export async function createProcessType(
   const { data } = await api.post<ProcessType>('/process-types', input);
   return data;
 }
+
+export type UpdateProcessTypeInput = Partial<CreateProcessTypeInput>;
+
+export async function updateProcessType(
+  id: number,
+  input: UpdateProcessTypeInput,
+): Promise<ProcessType> {
+  const { data } = await api.patch<ProcessType>(`/process-types/${id}`, input);
+  return data;
+}
