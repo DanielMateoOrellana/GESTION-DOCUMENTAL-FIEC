@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { AuditLog, User } from '../types';
 import { mockAuditLog, mockUsers } from '../data/mockData';
 import { FileText, Download, Filter, X } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AuditLogViewerProps {
   currentUser: User;
@@ -137,7 +137,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
     // Filter by search text (in details)
     if (searchText) {
       const search = searchText.toLowerCase();
-      filtered = filtered.filter(log => 
+      filtered = filtered.filter(log =>
         log.details?.toLowerCase().includes(search) ||
         log.action.toLowerCase().includes(search) ||
         log.entity_type.toLowerCase().includes(search)
@@ -145,7 +145,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
     }
 
     // Sort by date descending (most recent first)
-    return filtered.sort((a, b) => 
+    return filtered.sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }, [logs, filterUserId, filterAction, filterDateFrom, filterDateTo, searchText]);
@@ -158,7 +158,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
     if (filterDateTo) filterInfo.push(`date_to=${filterDateTo}`);
     if (searchText) filterInfo.push(`search=${searchText}`);
 
-    toast.success(`Exportando ${filteredLogs.length} registros a CSV` + 
+    toast.success(`Exportando ${filteredLogs.length} registros a CSV` +
       (filterInfo.length > 0 ? ` (Filtros: ${filterInfo.join(', ')})` : ''));
   };
 
@@ -170,7 +170,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
     if (filterDateTo) filterInfo.push(`date_to=${filterDateTo}`);
     if (searchText) filterInfo.push(`search=${searchText}`);
 
-    toast.success(`Generando PDF con ${filteredLogs.length} registros` + 
+    toast.success(`Generando PDF con ${filteredLogs.length} registros` +
       (filterInfo.length > 0 ? ` (Filtros: ${filterInfo.join(', ')})` : ''));
   };
 
@@ -183,7 +183,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
   };
 
   const getUserName = (userId: number) => {
-    return mockUsers.find(u => u.id === userId)?.full_name || 'Usuario desconocido';
+    return mockUsers.find(u => u.id === userId)?.fullName || 'Usuario desconocido';
   };
 
   const formatDateTime = (dateString: string) => {
@@ -265,7 +265,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
                   <SelectItem value="all">Todos</SelectItem>
                   {mockUsers.map(user => (
                     <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.full_name}
+                      {user.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>

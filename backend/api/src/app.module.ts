@@ -8,6 +8,7 @@ import { ProcessTemplatesModule } from './process-templates/process-templates.mo
 import { ProcessInstancesModule } from './process-instances/process-instances.module';
 import { StepFilesModule } from './step-files/step-files.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
@@ -21,6 +22,7 @@ import { RolesGuard } from './auth/roles.guard';
     ProcessInstancesModule,
     StepFilesModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [
@@ -38,4 +40,4 @@ import { RolesGuard } from './auth/roles.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -1,6 +1,7 @@
 import {
   User,
   Role,
+  UserRoleEnum,
   ProcessType,
   ProcessTemplate,
   StepTemplate,
@@ -15,51 +16,56 @@ import {
 export const mockUsers: User[] = [
   {
     id: 1,
-    full_name: 'Renata Avila',
+    fullName: 'Renata Avila',
     email: 'renata.avila@fiec.edu.ec',
-    is_active: true,
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-01-15T08:00:00Z'
+    isActive: true,
+    role: UserRoleEnum.ADMINISTRADOR,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:00:00Z'
   },
   {
     id: 2,
-    full_name: 'Rafael Bonilla',
+    fullName: 'Rafael Bonilla',
     email: 'rafael.bonilla@fiec.edu.ec',
-    is_active: true,
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-01-15T08:00:00Z'
+    isActive: true,
+    role: UserRoleEnum.LECTOR,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:00:00Z'
   },
   {
     id: 3,
-    full_name: 'Roberto Magallanes',
+    fullName: 'Roberto Magallanes',
     email: 'roberto.magallanes@fiec.edu.ec',
-    is_active: true,
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-01-15T08:00:00Z'
+    isActive: true,
+    role: UserRoleEnum.AYUDANTE,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:00:00Z'
   },
   {
     id: 4,
-    full_name: 'Admin Sistema',
+    fullName: 'Admin Sistema',
     email: 'admin@fiec.edu.ec',
-    is_active: true,
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-01-15T08:00:00Z'
+    isActive: true,
+    role: UserRoleEnum.ADMINISTRADOR,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:00:00Z'
   },
   {
     id: 5,
-    full_name: 'Usuario Ejemplo',
+    fullName: 'Usuario Ejemplo',
     email: 'usuario.ejemplo@fiec.edu.ec',
-    is_active: false,
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-01-15T08:00:00Z'
+    isActive: false,
+    role: UserRoleEnum.LECTOR,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:00:00Z'
   }
 ];
 
 export const mockRoles: Role[] = [
-  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Ve y administra todo el sistema', created_at: '2024-01-15T08:00:00Z' },
-  { id: 2, code: 'GESTOR', name: 'Gestor', description: 'Crea tipos, plantillas y procesos; carga evidencias', created_at: '2024-01-15T08:00:00Z' },
-  { id: 3, code: 'LECTOR', name: 'Lector', description: 'Solo lectura y comentarios', created_at: '2024-01-15T08:00:00Z' },
-  { id: 4, code: 'AYUDANTE', name: 'Ayudante', description: 'Solo puede cargar archivos/evidencias', created_at: '2024-01-15T08:00:00Z' }
+  { id: 1, code: 'ADMIN', name: 'Administrador', description: 'Ve y administra todo el sistema' },
+  { id: 2, code: 'GESTOR', name: 'Gestor', description: 'Crea tipos, plantillas y procesos; carga evidencias' },
+  { id: 3, code: 'LECTOR', name: 'Lector', description: 'Solo lectura y comentarios' },
+  { id: 4, code: 'AYUDANTE', name: 'Ayudante', description: 'Solo puede cargar archivos/evidencias' }
 ];
 
 export const mockProcessTypes: ProcessType[] = [

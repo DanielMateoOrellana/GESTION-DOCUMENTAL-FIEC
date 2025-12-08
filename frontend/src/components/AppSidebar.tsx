@@ -93,15 +93,15 @@ export function AppSidebar({
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center">
               <span className="text-sidebar-primary-foreground text-sm">
-                {currentUser.full_name
+                {currentUser.fullName
                   .split(" ")
-                  .map((n) => n[0])
+                  .map((n: string) => n[0])
                   .join("")}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-sidebar-foreground truncate">
-                {currentUser.full_name}
+                {currentUser.fullName}
               </p>
               <p className="text-xs text-sidebar-foreground/70 truncate">
                 Secretaría

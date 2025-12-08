@@ -1,30 +1,29 @@
 // Types based on FIEC database schema
 
+export enum UserRoleEnum {
+  ADMINISTRADOR = 'ADMINISTRADOR',
+  GESTOR = 'GESTOR',
+  LECTOR = 'LECTOR',
+  AYUDANTE = 'AYUDANTE',
+}
+
 export interface User {
   id: number;
-  full_name: string;
+  fullName: string;
   email: string;
-  password_hash?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  roles?: Role[]; // Added for convenience
+  role: UserRoleEnum;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Role {
   id: number;
-  code: string;
   name: string;
+  code: string;
   description: string;
-  created_at: string;
-  permissions?: string[]; // Added for permissions management
 }
 
-export interface UserRole {
-  user_id: number;
-  role_id: number;
-  created_at: string;
-}
 
 export interface ProcessType {
   id: number;

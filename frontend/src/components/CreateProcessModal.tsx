@@ -23,15 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { User } from "../types";
 import { toast } from "sonner";
-import { FileText, CheckCircle, Calendar as CalendarIcon } from "lucide-react";
-
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
-import { Calendar } from "./ui/calendar";
-import { cn } from "./ui/utils";
+import { FileText, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -73,11 +65,38 @@ export function CreateProcessModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // ... (useEffect omitted)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [types, allTemplates] = await Promise.all([
+          fetchProcessTypes(),
+          fetchProcessTemplates(),
+        ]);
+        setProcessTypes(types);
+        setTemplates(allTemplates);
+      } catch (error) {
+        console.error(error);
+        toast.error("Error al cargar datos iniciales");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // ... (availableTemplates omitted)
+    if (open) {
+      loadData();
+    }
+  }, [open]);
 
-  // ... (selectedTemplate omitted)
+  const availableTemplates = templates.filter(
+    (t) =>
+      t.processTypeId.toString() === selectedProcessTypeId &&
+      (showObsoleteTemplates ? true : t.isActive)
+  );
+
+  const selectedTemplate = templates.find(
+    (t) => t.id.toString() === selectedTemplateId
+  );
 
   const handleCreate = async () => {
     if (!selectedProcessTypeId || !selectedTemplateId || !processTitle) {
@@ -272,35 +291,19 @@ export function CreateProcessModal({
 
             <div className="flex flex-col space-y-2">
               <Label>Fecha de Término (Opcional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full pl-3 text-left font-normal",
-                      !dueAt && "text-muted-foreground"
-                    )}
-                  >
-                    {dueAt ? (
-                      format(dueAt, "PPP", { locale: es })
-                    ) : (
-                      <span>Seleccione una fecha</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dueAt}
-                    onSelect={setDueAt}
-                    disabled={(date) =>
-                      date < new Date(new Date().setHours(0, 0, 0, 0))
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              {/* CAMBIO PRINCIPAL: Se eliminó modal={true} y se confía en el zIndex */}
+              <Input
+                type="date"
+                value={dueAt ? format(dueAt, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    setDueAt(undefined);
+                  } else {
+                    // Set to noon to avoid timezone issues rolling back to previous day
+                    setDueAt(new Date(e.target.value + "T12:00:00"));
+                  }
+                }}
+              />
               <p className="text-[0.8rem] text-muted-foreground">
                 Esta fecha se aplicará como límite para el proceso y todos sus pasos.
               </p>

@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { ArchiveOperation, ProcessInstance, User, ExportLog } from '../types';
 import { mockProcessInstances, getUserById } from '../data/mockData';
 import { Archive, Download, FileArchive, Lock, Calendar } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ArchiveExportProps {
   currentUser: User;
@@ -55,13 +55,13 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
   const [exportLogs, setExportLogs] = useState<ExportLog[]>(mockExportLogs);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  
+
   // Archive form
   const [archiveDateFrom, setArchiveDateFrom] = useState('');
   const [archiveDateTo, setArchiveDateTo] = useState('');
   const [archiveProgress, setArchiveProgress] = useState(0);
   const [archiving, setArchivingState] = useState(false);
-  
+
   // Export form
   const [exportDateFrom, setExportDateFrom] = useState('');
   const [exportDateTo, setExportDateTo] = useState('');
@@ -104,7 +104,7 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
       setArchiveProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
-          
+
           // Create archive operation record
           const newOperation: ArchiveOperation = {
             id: Math.max(...archiveOperations.map(a => a.id), 0) + 1,
@@ -118,17 +118,17 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
           };
 
           setArchiveOperations([...archiveOperations, newOperation]);
-          
+
           toast.success(
             `${processesToArchive.length} proceso(s) archivado(s) exitosamente. ` +
             `Los procesos están disponibles en modo de solo lectura.`
           );
-          
+
           setArchivingState(false);
           setArchiveDateFrom('');
           setArchiveDateTo('');
           setIsArchiving(false);
-          
+
           return 100;
         }
         return prev + 10;
@@ -169,10 +169,10 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
       setExportProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
-          
+
           const filters = `date_from=${exportDateFrom}, date_to=${exportDateTo}`;
           const estimatedSize = processesToExport.length * 3500000; // ~3.5 MB per process (mock)
-          
+
           // Create export log record
           const newExportLog: ExportLog = {
             id: Math.max(...exportLogs.map(e => e.id), 0) + 1,
@@ -185,24 +185,24 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
           };
 
           setExportLogs([...exportLogs, newExportLog]);
-          
+
           toast.success(
             `Exportación completada: ${processesToExport.length} proceso(s) exportado(s). ` +
             `Archivo ZIP generado con estructura por proceso e índice CSV/PDF. ` +
             `Tamaño estimado: ${formatBytes(estimatedSize)}`
           );
-          
+
           // Log to audit
           toast.info(
-            `Registro en bitácora: Usuario ${currentUser.full_name}, ` +
+            `Registro en bitácora: Usuario ${currentUser.fullName}, ` +
             `Filtros: ${filters}, Tamaño: ${formatBytes(estimatedSize)}`
           );
-          
+
           setExportingState(false);
           setExportDateFrom('');
           setExportDateTo('');
           setIsExporting(false);
-          
+
           return 100;
         }
         return prev + 8;
@@ -323,7 +323,7 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
                 {archiveOperations.map(operation => (
                   <TableRow key={operation.id}>
                     <TableCell>{operation.id}</TableCell>
-                    <TableCell>{getUserById(operation.user_id)?.full_name}</TableCell>
+                    <TableCell>{getUserById(operation.user_id)?.fullName}</TableCell>
                     <TableCell>
                       <div className="text-sm">
                         <div>{new Date(operation.date_from).toLocaleDateString('es-ES')}</div>
@@ -339,8 +339,8 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
                       <Badge
                         variant={
                           operation.status === 'COMPLETED' ? 'default' :
-                          operation.status === 'IN_PROGRESS' ? 'secondary' :
-                          'destructive'
+                            operation.status === 'IN_PROGRESS' ? 'secondary' :
+                              'destructive'
                         }
                       >
                         {operation.status}
@@ -386,7 +386,7 @@ export function ArchiveExport({ currentUser }: ArchiveExportProps) {
                 {exportLogs.map(log => (
                   <TableRow key={log.id}>
                     <TableCell>{log.id}</TableCell>
-                    <TableCell>{getUserById(log.user_id)?.full_name}</TableCell>
+                    <TableCell>{getUserById(log.user_id)?.fullName}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{log.export_type}</Badge>
                     </TableCell>

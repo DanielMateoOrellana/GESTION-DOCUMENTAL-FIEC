@@ -23,9 +23,11 @@ function mapAuthUserToUser(authUser: any): User {
     id: authUser.id,
     email: authUser.email,
     // tu front usa full_name, el back fullName
-    full_name: authUser.fullName ?? authUser.full_name ?? authUser.email,
-    // aquí puedes mapear nombres de rol si luego quieres algo más lindo
+    fullName: authUser.fullName ?? authUser.full_name ?? authUser.email,
     role: authUser.role,
+    isActive: authUser.isActive ?? true,
+    createdAt: authUser.createdAt ?? new Date().toISOString(),
+    updatedAt: authUser.updatedAt ?? new Date().toISOString(),
   } as User;
 }
 

@@ -15,7 +15,7 @@ import {
 } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { User } from '../types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Calendar } from 'lucide-react';
 import { Badge } from './ui/badge';
 import {
@@ -68,8 +68,8 @@ export function ProcessInstanceCreator({
 
   const availableTemplates = selectedProcessTypeId
     ? mockProcessTemplates.filter(
-        (t) => t.process_type_id === selectedProcessTypeId && t.is_published,
-      )
+      (t) => t.process_type_id === selectedProcessTypeId && t.is_published,
+    )
     : [];
 
   const handleCreateInstance = async () => {
@@ -139,7 +139,7 @@ export function ProcessInstanceCreator({
               <Label htmlFor="process-type">Tipo de Proceso *</Label>
               <Select
                 value={selectedProcessTypeId?.toString()}
-                onValueChange={(value) => {
+                onValueChange={(value: string) => {
                   setSelectedProcessTypeId(parseInt(value));
                   setSelectedTemplateId(null);
                 }}
@@ -165,7 +165,7 @@ export function ProcessInstanceCreator({
                 <Label htmlFor="template">Plantilla *</Label>
                 <Select
                   value={selectedTemplateId?.toString()}
-                  onValueChange={(value) => setSelectedTemplateId(parseInt(value))}
+                  onValueChange={(value: string) => setSelectedTemplateId(parseInt(value))}
                 >
                   <SelectTrigger id="template">
                     <SelectValue placeholder="Seleccione una plantilla" />
@@ -198,7 +198,7 @@ export function ProcessInstanceCreator({
                 <Label htmlFor="year">Año *</Label>
                 <Select
                   value={selectedYear.toString()}
-                  onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  onValueChange={(value: string) => setSelectedYear(parseInt(value))}
                 >
                   <SelectTrigger id="year">
                     <SelectValue />
@@ -217,7 +217,7 @@ export function ProcessInstanceCreator({
                 <Label htmlFor="month">Mes *</Label>
                 <Select
                   value={selectedMonth.toString()}
-                  onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                  onValueChange={(value: string) => setSelectedMonth(parseInt(value))}
                 >
                   <SelectTrigger id="month">
                     <SelectValue />
@@ -284,7 +284,7 @@ export function ProcessInstanceCreator({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Responsable:</span>
-                    <span>{currentUser.full_name}</span>
+                    <span>{currentUser.fullName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Pasos a crear:</span>

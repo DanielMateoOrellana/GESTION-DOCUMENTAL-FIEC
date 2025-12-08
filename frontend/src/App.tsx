@@ -56,17 +56,17 @@ export default function App() {
   }
 
   if (!user) {
-  return (
-    <>
-      {authMode === 'login' ? (
-        <Login onSwitchToRegister={() => setAuthMode('register')} />
-      ) : (
-        <Register onSwitchToLogin={() => setAuthMode('login')} />
-      )}
-      <Toaster />
-    </>
-  );
-}
+    return (
+      <>
+        {authMode === 'login' ? (
+          <Login onSwitchToRegister={() => setAuthMode('register')} />
+        ) : (
+          <Register onSwitchToLogin={() => setAuthMode('login')} />
+        )}
+        <Toaster />
+      </>
+    );
+  }
 
 
   const currentUser: User = user; // ya viene mapeado desde AuthContext
@@ -147,7 +147,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-sm text-muted-foreground">
-                  {currentUser.full_name} ({currentUser.role})
+                  {currentUser.fullName} ({currentUser.role})
                 </div>
               </div>
             </div>

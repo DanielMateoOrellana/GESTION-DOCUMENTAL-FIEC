@@ -248,7 +248,7 @@ export function ProcessDetailSimple({
 
   const responsibleName =
     isCurrentUserResponsible
-      ? currentUser.full_name
+      ? currentUser.fullName
       : process.responsibleUserId != null
         ? `Usuario #${process.responsibleUserId}`
         : "—";

@@ -332,15 +332,15 @@ export function ProcessListSimple({
 
                 const responsibleLabel =
                   process.responsibleUserId === currentUser.id
-                    ? currentUser.full_name
+                    ? currentUser.fullName
                     : process.responsibleUserId != null
-                    ? `Usuario #${process.responsibleUserId}`
-                    : "—";
+                      ? `Usuario #${process.responsibleUserId}`
+                      : "—";
 
-                 const minSteps = process.steps || [];
-                 const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
-                 const totalSteps = minSteps.length;
-                 const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                const minSteps = process.steps || [];
+                const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
+                const totalSteps = minSteps.length;
+                const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
                 return (
                   <TableRow key={process.id}>
@@ -356,9 +356,8 @@ export function ProcessListSimple({
                     <TableCell className="max-w-xs truncate">
                       {process.title ||
                         (process.processTypeId
-                          ? `${getProcessTypeName(process.processTypeId)} ${
-                              process.year ?? ""
-                            }`
+                          ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""
+                          }`
                           : `Proceso ${process.id}`)}
                     </TableCell>
                     <TableCell>
@@ -370,17 +369,17 @@ export function ProcessListSimple({
                       <Badge className={state.color}>{state.label}</Badge>
                     </TableCell>
                     <TableCell>
-                         <div className="space-y-1 min-w-[120px]">
-                              <div className="flex items-center gap-2">
-                                <Progress value={progressPercent} className="h-2 flex-1" />
-                                <span className="text-xs text-muted-foreground w-8 text-right">
-                                  {progressPercent}%
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                {completedSteps} de {totalSteps} completados
-                              </div>
-                            </div>
+                      <div className="space-y-1 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <Progress value={progressPercent} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8 text-right">
+                            {progressPercent}%
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {completedSteps} de {totalSteps} completados
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {editingTags === process.id ? (
