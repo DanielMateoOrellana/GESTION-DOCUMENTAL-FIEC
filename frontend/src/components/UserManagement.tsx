@@ -194,15 +194,16 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         </CardContent>
       </Card>
 
+      {/* Modal Crear Usuario - Usando sm:max-w-sm para un ancho compacto estándar */}
       <Dialog open={isCreatingUser} onOpenChange={(open: boolean) => { if (!open) resetForm(); setIsCreatingUser(open); }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Usuario</DialogTitle>
             <DialogDescription>
               Ingrese los datos del nuevo usuario.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3 py-3">
             <div className="grid gap-2">
               <Label htmlFor="fullName">Nombre Completo</Label>
               <Input
@@ -243,7 +244,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                     <SelectItem key={role.value} value={role.value}>
                       <div className="flex flex-col items-start">
                         <span>{role.label}</span>
-                        <span className="text-xs text-muted-foreground">{role.description}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -253,17 +253,18 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreatingUser(false)}>Cancelar</Button>
-            <Button onClick={handleCreate}>Crear Usuario</Button>
+            <Button onClick={handleCreate}>Crear</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Modal Editar Usuario - Usando sm:max-w-sm */}
       <Dialog open={isEditingUser} onOpenChange={(open: boolean) => { if (!open) resetForm(); setIsEditingUser(open); }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar Usuario</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3 py-3">
             <div className="grid gap-2">
               <Label htmlFor="edit-fullName">Nombre Completo</Label>
               <Input
@@ -302,7 +303,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditingUser(false)}>Cancelar</Button>
-            <Button onClick={handleUpdate}>Guardar Cambios</Button>
+            <Button onClick={handleUpdate}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

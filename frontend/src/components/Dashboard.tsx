@@ -34,11 +34,15 @@ interface TaskItem {
   dueDate: Date | null;
   status: 'PENDIENTE' | 'COMPLETADO';
   overdue: boolean;
+  year?: number;
+  processTypeId?: number;
 }
 
 export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
 
@@ -68,6 +72,8 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
     loadData();
   }, []);
 
+  const years = Array.from(new Set(processes.map(p => p.year).filter(y => y != null))).sort((a, b) => b - a);
+
   const processData = (procs: ProcessInstance[], types: ProcessType[]) => {
     const newTasks: TaskItem[] = [];
     const now = new Date();
@@ -95,7 +101,9 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
         responsible: responsibleName,
         dueDate: due,
         status: p.estado,
-        overdue: p.estado === 'PENDIENTE' && due ? due < now : false
+        overdue: p.estado === 'PENDIENTE' && due ? due < now : false,
+        year: p.year ?? undefined,
+        processTypeId: p.processTypeId ?? undefined,
       });
     });
 
@@ -123,6 +131,16 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
       if (statusFilter === 'overdue') return task.overdue;
       if (statusFilter !== task.status) return false;
     }
+
+    // Year Filter
+    if (filterYear !== 'all' && task.year?.toString() !== filterYear) {
+      return false;
+    }
+
+    // Type Filter (Note: task.processType is the name. We need to filter by ID or handle this differently.) 
+    // Actually ProcessListSimple filters by processTypeId. 
+    // Let's check if we have the ID available. We have processId. We can look up the process in `processes` but that is slow inside filter.
+    // Better to add processTypeId to TaskItem.
 
     return true;
   });
@@ -160,6 +178,11 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Pendientes</span>
             <span className="text-xl font-bold text-yellow-600">{tasks.filter(t => t.status === 'PENDIENTE').length}</span>
           </div>
+          {/* NUEVO: Contador de completados */}
+          <div className="px-4 py-1 text-center border-r">
+            <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Completados</span>
+            <span className="text-xl font-bold text-green-600">{tasks.filter(t => t.status === 'COMPLETADO').length}</span>
+          </div>
           <div className="px-4 py-1 text-center">
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencidos</span>
             <span className="text-xl font-bold text-red-600">{tasks.filter(t => t.overdue).length}</span>
@@ -173,29 +196,56 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Buscar proceso..."
-                className="pl-9 w-full"
+                className="pl-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="PENDIENTE">Pendientes</SelectItem>
-                  <SelectItem value="overdue">Vencidos</SelectItem>
-                  <SelectItem value="COMPLETADO">Completados</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger>
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los años</SelectItem>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {processTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id.toString()}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="PENDIENTE">Pendientes</SelectItem>
+                <SelectItem value="overdue">Vencidos</SelectItem>
+                <SelectItem value="COMPLETADO">Completados</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

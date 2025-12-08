@@ -14,6 +14,14 @@ import {
   type ProcessInstance,
   type EstadoProceso
 } from '../api/processInstances';
+import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface CompliancePanelSimpleProps {
   currentUser: User;
@@ -25,13 +33,29 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
   const [selectedProcesses, setSelectedProcesses] = useState<number[]>([]);
   const [instances, setInstances] = useState<ProcessInstance[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterState, setFilterState] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+
+  const years = Array.from(
+    new Set(
+      instances
+        .map((p) => p.year)
+        .filter((y): y is number => typeof y === "number")
+    )
+  ).sort((a, b) => b - a);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await fetchProcessInstances();
+        const [data, types] = await Promise.all([
+          fetchProcessInstances(),
+          fetchProcessTypes(),
+        ]);
         setInstances(data);
+        setProcessTypes(types);
       } catch (error) {
         console.error('Error cargando procesos', error);
         toast.error('Error al cargar la información de cumplimiento');
@@ -52,9 +76,12 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
     const responsibleName = process.responsibleUser?.fullName?.toLowerCase() || '';
 
     return (
-      title.includes(searchLower) ||
-      typeName.includes(searchLower) ||
-      responsibleName.includes(searchLower)
+      (title.includes(searchLower) ||
+        typeName.includes(searchLower) ||
+        responsibleName.includes(searchLower)) &&
+      (filterYear === "all" || process.year?.toString() === filterYear) &&
+      (filterState === "all" || process.estado === filterState) &&
+      (filterType === "all" || process.processTypeId?.toString() === filterType)
     );
   });
 
@@ -144,14 +171,52 @@ export function CompliancePanelSimple({ currentUser, onViewChange }: ComplianceP
       {/* Búsqueda */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Buscar procesos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Buscar procesos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger>
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los años</SelectItem>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {processTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id.toString()}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterState} onValueChange={setFilterState}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                <SelectItem value="COMPLETADO">Completado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
