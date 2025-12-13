@@ -21,7 +21,7 @@ import {
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
 import { Search, Plus, Eye, X } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
 import { Progress } from "./ui/progress";
 

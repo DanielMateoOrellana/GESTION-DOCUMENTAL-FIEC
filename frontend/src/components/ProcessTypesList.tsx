@@ -25,7 +25,6 @@ import {
 } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import {
   Select,
@@ -50,13 +49,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { Plus, Edit } from 'lucide-react';
+import { Plus, Edit, AlertTriangle, FolderTree, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
+import { FormField } from './ui/form-field';
+import { EmptyState } from './ui/empty-state';
+import { LoadingSpinner, TableSkeleton } from './ui/loading-spinner';
+import { cn } from './ui/utils';
+import { Badge } from './ui/badge';
 
 interface ProcessTypesListProps {
   currentUser: User;
   onViewChange: (view: string, data?: any) => void;
+}
+
+interface FormErrors {
+  name?: string;
+  category?: string;
+  description?: string;
 }
 
 export function ProcessTypesList({
@@ -67,7 +77,7 @@ export function ProcessTypesList({
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
   const [newTypeName, setNewTypeName] = useState('');
-  const [newTypeCategory, setNewTypeCategory] = useState(''); // id de categoría como string
+  const [newTypeCategory, setNewTypeCategory] = useState('');
   const [newTypeDescription, setNewTypeDescription] = useState('');
 
   // Estados para edición
@@ -80,35 +90,43 @@ export function ProcessTypesList({
 
   const [categories, setCategories] = useState<ProcessCategory[]>([]);
   const [processTypes, setProcessTypes] = useState<ApiProcessType[] | any>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Form validation
+  const [createErrors, setCreateErrors] = useState<FormErrors>({});
+  const [editErrors, setEditErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Cargar categorías y tipos desde el backend
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [cats, types] = await Promise.all([
+        fetchProcessCategories(),
+        fetchProcessTypes(),
+      ]);
+      setCategories(cats);
+      setProcessTypes(types);
+    } catch (e) {
+      console.error('[ProcessTypesList] Error cargando datos:', e);
+      setError('No se pudieron cargar los tipos de proceso. Por favor, intente nuevamente.');
+      toast.error('Error cargando datos de tipos de proceso');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [cats, types] = await Promise.all([
-          fetchProcessCategories(),
-          fetchProcessTypes(),
-        ]);
-
-        setCategories(cats);
-        setProcessTypes(types);
-      } catch (e) {
-        console.error('[ProcessTypesList] Error cargando datos:', e);
-        toast.error('Error cargando datos de tipos de proceso');
-      }
-    };
-
-    load();
+    loadData();
   }, []);
 
   // Normalizar processTypes a array seguro
   const safeProcessTypes: ApiProcessType[] = useMemo(() => {
     if (!Array.isArray(processTypes)) {
-      console.error(
-        '[ProcessTypesList] processTypes no es un array. Valor actual:',
-        processTypes,
-      );
+      console.error('[ProcessTypesList] processTypes no es un array:', processTypes);
       return [];
     }
     return processTypes;
@@ -116,7 +134,7 @@ export function ProcessTypesList({
 
   const activeTypes = useMemo(
     () => safeProcessTypes.filter((t) => t.isActive),
-    [safeProcessTypes],
+    [safeProcessTypes]
   );
 
   const allActiveSelected =
@@ -134,7 +152,7 @@ export function ProcessTypesList({
 
   const handleSelectItem = (id: number) => {
     setSelectedItems((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
@@ -146,17 +164,63 @@ export function ProcessTypesList({
     toast.success(`Exportando ${selectedItems.length} tipo(s) de proceso`);
   };
 
+  const validateCreateForm = (): boolean => {
+    const errors: FormErrors = {};
+
+    if (!newTypeName.trim()) {
+      errors.name = 'El nombre es requerido';
+    } else if (newTypeName.trim().length < 3) {
+      errors.name = 'El nombre debe tener al menos 3 caracteres';
+    }
+
+    if (!newTypeCategory) {
+      errors.category = 'Seleccione una categoría';
+    }
+
+    if (!newTypeDescription.trim()) {
+      errors.description = 'La descripción es requerida';
+    } else if (newTypeDescription.trim().length < 10) {
+      errors.description = 'La descripción debe tener al menos 10 caracteres';
+    }
+
+    setCreateErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateEditForm = (): boolean => {
+    const errors: FormErrors = {};
+
+    if (!editTypeName.trim()) {
+      errors.name = 'El nombre es requerido';
+    } else if (editTypeName.trim().length < 3) {
+      errors.name = 'El nombre debe tener al menos 3 caracteres';
+    }
+
+    if (!editTypeCategory) {
+      errors.category = 'Seleccione una categoría';
+    }
+
+    if (!editTypeDescription.trim()) {
+      errors.description = 'La descripción es requerida';
+    } else if (editTypeDescription.trim().length < 10) {
+      errors.description = 'La descripción debe tener al menos 10 caracteres';
+    }
+
+    setEditErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateProcessType = async () => {
-    if (!newTypeName || !newTypeCategory || !newTypeDescription) {
-      toast.error('Complete todos los campos');
+    if (!validateCreateForm()) {
+      toast.error('Por favor corrija los errores en el formulario');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       const payload = {
-        name: newTypeName,
-        description: newTypeDescription,
+        name: newTypeName.trim(),
+        description: newTypeDescription.trim(),
         categoryId: Number(newTypeCategory),
         isActive: true,
       };
@@ -164,36 +228,37 @@ export function ProcessTypesList({
       const created = await createProcessType(payload);
 
       setProcessTypes((prev: any) => {
-        if (!Array.isArray(prev)) {
-          return [created];
-        }
+        if (!Array.isArray(prev)) return [created];
         return [created, ...prev];
       });
 
-      toast.success(`Tipo de proceso "${newTypeName}" creado`);
-      setNewTypeName('');
-      setNewTypeCategory('');
-      setNewTypeDescription('');
+      toast.success(`Tipo de proceso "${newTypeName}" creado`, {
+        icon: <CheckCircle className="w-4 h-4" />,
+      });
+      resetCreateForm();
       setShowCreateModal(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[ProcessTypesList] Error creando tipo de proceso:', e);
-      toast.error('No se pudo crear el tipo de proceso');
+      const errorMsg = e.response?.data?.message || 'No se pudo crear el tipo de proceso';
+      toast.error(errorMsg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   const handleUpdateProcessType = async () => {
-    if (!editingType || !editTypeName || !editTypeCategory || !editTypeDescription) {
-      toast.error('Complete todos los campos');
+    if (!editingType) return;
+
+    if (!validateEditForm()) {
+      toast.error('Por favor corrija los errores en el formulario');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       const payload = {
-        name: editTypeName,
-        description: editTypeDescription,
+        name: editTypeName.trim(),
+        description: editTypeDescription.trim(),
         categoryId: Number(editTypeCategory),
         isActive: editTypeActive,
       };
@@ -202,17 +267,21 @@ export function ProcessTypesList({
 
       setProcessTypes((prev: any) => {
         if (!Array.isArray(prev)) return [updated];
-        return prev.map((p) => p.id === updated.id ? updated : p);
+        return prev.map((p) => (p.id === updated.id ? updated : p));
       });
 
-      toast.success(`Tipo de proceso "${editTypeName}" actualizado`);
+      toast.success(`Tipo de proceso "${editTypeName}" actualizado`, {
+        icon: <CheckCircle className="w-4 h-4" />,
+      });
       setShowEditModal(false);
       setEditingType(null);
-    } catch (e) {
+      resetEditForm();
+    } catch (e: any) {
       console.error('[ProcessTypesList] Error actualizando tipo de proceso:', e);
-      toast.error('No se pudo actualizar el tipo de proceso');
+      const errorMsg = e.response?.data?.message || 'No se pudo actualizar el tipo de proceso';
+      toast.error(errorMsg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -222,16 +291,44 @@ export function ProcessTypesList({
     setEditTypeDescription(type.description);
     setEditTypeCategory(type.categoryId.toString());
     setEditTypeActive(type.isActive);
+    setEditErrors({});
     setShowEditModal(true);
+  };
+
+  const resetCreateForm = () => {
+    setNewTypeName('');
+    setNewTypeCategory('');
+    setNewTypeDescription('');
+    setCreateErrors({});
+    setTouched({});
+  };
+
+  const resetEditForm = () => {
+    setEditTypeName('');
+    setEditTypeCategory('');
+    setEditTypeDescription('');
+    setEditTypeActive(true);
+    setEditErrors({});
+  };
+
+  const handleCloseCreateModal = () => {
+    resetCreateForm();
+    setShowCreateModal(false);
+  };
+
+  const handleCloseEditModal = () => {
+    resetEditForm();
+    setEditingType(null);
+    setShowEditModal(false);
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1>Tipos de proceso</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Tipos de proceso</h1>
           <p className="text-muted-foreground">
-            Catálogo de tipos de procesos
+            Catálogo de tipos de procesos institucionales
           </p>
         </div>
         <div className="flex gap-2">
@@ -255,222 +352,318 @@ export function ProcessTypesList({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={allActiveSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Seleccionar todos"
-                  />
-                </TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Plantillas</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activeTypes.map((type) => {
-                const templatesCount = mockProcessTemplates.filter(
-                  (t) => t.process_type_id === type.id,
-                ).length;
-                const processesCount = mockProcessInstances.filter(
-                  (p) => p.process_type_id === type.id,
-                ).length;
-
-                return (
-                  <TableRow key={type.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedItems.includes(type.id)}
-                        onCheckedChange={() => handleSelectItem(type.id)}
-                        aria-label={`Seleccionar ${type.name}`}
-                      />
-                    </TableCell>
-                    <TableCell>{type.name}</TableCell>
-                    <TableCell className="max-w-md truncate">
-                      {type.description}
-                    </TableCell>
-                    <TableCell>
-                      {type.category?.name ?? 'Sin categoría'}
-                    </TableCell>
-                    <TableCell>
-                      {type.isActive ? 'Activo' : 'Inactivo'}
-                    </TableCell>
-                    <TableCell>{templatesCount}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(type)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-
-              {activeTypes.length === 0 && (
+          {loading ? (
+            <TableSkeleton rows={5} columns={7} />
+          ) : error ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Error al cargar datos"
+              description={error}
+              action={
+                <Button variant="outline" onClick={loadData}>
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : activeTypes.length === 0 ? (
+            <EmptyState
+              icon={FolderTree}
+              title="No hay tipos de proceso"
+              description="Crea el primer tipo de proceso para comenzar a organizar tus procesos institucionales."
+              action={
+                <Button onClick={() => setShowCreateModal(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear tipo de proceso
+                </Button>
+              }
+            />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center text-muted-foreground"
-                  >
-                    No hay tipos de proceso activos.
-                  </TableCell>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allActiveSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Seleccionar todos"
+                    />
+                  </TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Plantillas</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {activeTypes.map((type) => {
+                  const templatesCount = mockProcessTemplates.filter(
+                    (t) => t.process_type_id === type.id
+                  ).length;
+
+                  return (
+                    <TableRow key={type.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedItems.includes(type.id)}
+                          onCheckedChange={() => handleSelectItem(type.id)}
+                          aria-label={`Seleccionar ${type.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{type.name}</TableCell>
+                      <TableCell className="max-w-md truncate">
+                        {type.description}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {type.category?.name ?? 'Sin categoría'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          type.isActive
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        )}>
+                          {type.isActive ? 'Activo' : 'Inactivo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{templatesCount}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(type)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent>
+      {/* Modal Crear */}
+      <Dialog open={showCreateModal} onOpenChange={handleCloseCreateModal}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Crear tipo de proceso</DialogTitle>
             <DialogDescription>
-              Define un nuevo tipo de proceso
+              Define un nuevo tipo de proceso. Los campos marcados con * son requeridos.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="type-name">Nombre *</Label>
+          <div className="space-y-4 py-4">
+            <FormField
+              label="Nombre"
+              htmlFor="type-name"
+              required
+              error={createErrors.name}
+            >
               <Input
                 id="type-name"
                 value={newTypeName}
-                onChange={(e) => setNewTypeName(e.target.value)}
+                onChange={(e) => {
+                  setNewTypeName(e.target.value);
+                  if (e.target.value.trim().length >= 3) {
+                    setCreateErrors(prev => ({ ...prev, name: undefined }));
+                  }
+                }}
                 placeholder="Evaluación Docente"
+                className={cn(createErrors.name && "border-destructive")}
               />
-            </div>
-            <div>
-              <Label htmlFor="type-category">Categoría *</Label>
+            </FormField>
+
+            <FormField
+              label="Categoría"
+              htmlFor="type-category"
+              required
+              error={createErrors.category}
+            >
               <Select
                 value={newTypeCategory}
-                onValueChange={setNewTypeCategory}
+                onValueChange={(val: string) => {
+                  setNewTypeCategory(val);
+                  setCreateErrors(prev => ({ ...prev, category: undefined }));
+                }}
               >
-                <SelectTrigger id="type-category">
+                <SelectTrigger
+                  id="type-category"
+                  className={cn(createErrors.category && "border-destructive")}
+                >
                   <SelectValue placeholder="Seleccione categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem
-                      key={cat.id}
-                      value={cat.id.toString()}
-                    >
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  {categories.length === 0 ? (
+                    <div className="py-4 text-center text-sm text-muted-foreground">
+                      No hay categorías disponibles
+                    </div>
+                  ) : (
+                    categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="type-description">Descripción *</Label>
+            </FormField>
+
+            <FormField
+              label="Descripción"
+              htmlFor="type-description"
+              required
+              error={createErrors.description}
+              hint="Mínimo 10 caracteres"
+            >
               <Textarea
                 id="type-description"
                 value={newTypeDescription}
-                onChange={(e) =>
-                  setNewTypeDescription(e.target.value)
-                }
-                placeholder="Describe el tipo de proceso"
+                onChange={(e) => {
+                  setNewTypeDescription(e.target.value);
+                  if (e.target.value.trim().length >= 10) {
+                    setCreateErrors(prev => ({ ...prev, description: undefined }));
+                  }
+                }}
+                placeholder="Describe el tipo de proceso y su propósito..."
                 rows={3}
+                className={cn(createErrors.description && "border-destructive")}
               />
-            </div>
+            </FormField>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateModal(false)}
-            >
+            <Button variant="outline" onClick={handleCloseCreateModal} disabled={submitting}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateProcessType} disabled={loading}>
-              {loading ? 'Guardando...' : 'Crear'}
+            <Button onClick={handleCreateProcessType} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Creando...
+                </>
+              ) : (
+                'Crear'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
-
       </Dialog>
 
       {/* Modal de Edición */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent>
+      <Dialog open={showEditModal} onOpenChange={handleCloseEditModal}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar tipo de proceso</DialogTitle>
             <DialogDescription>
               Modifica los datos del tipo de proceso
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-type-name">Nombre *</Label>
+          <div className="space-y-4 py-4">
+            <FormField
+              label="Nombre"
+              htmlFor="edit-type-name"
+              required
+              error={editErrors.name}
+            >
               <Input
                 id="edit-type-name"
                 value={editTypeName}
-                onChange={(e) => setEditTypeName(e.target.value)}
+                onChange={(e) => {
+                  setEditTypeName(e.target.value);
+                  if (e.target.value.trim().length >= 3) {
+                    setEditErrors(prev => ({ ...prev, name: undefined }));
+                  }
+                }}
                 placeholder="Evaluación Docente"
+                className={cn(editErrors.name && "border-destructive")}
               />
-            </div>
-            <div>
-              <Label htmlFor="edit-type-category">Categoría *</Label>
+            </FormField>
+
+            <FormField
+              label="Categoría"
+              htmlFor="edit-type-category"
+              required
+              error={editErrors.category}
+            >
               <Select
                 value={editTypeCategory}
-                onValueChange={setEditTypeCategory}
+                onValueChange={(val: string) => {
+                  setEditTypeCategory(val);
+                  setEditErrors(prev => ({ ...prev, category: undefined }));
+                }}
               >
-                <SelectTrigger id="edit-type-category">
+                <SelectTrigger
+                  id="edit-type-category"
+                  className={cn(editErrors.category && "border-destructive")}
+                >
                   <SelectValue placeholder="Seleccione categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
-                    <SelectItem
-                      key={cat.id}
-                      value={cat.id.toString()}
-                    >
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
                       {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-type-description">Descripción *</Label>
+            </FormField>
+
+            <FormField
+              label="Descripción"
+              htmlFor="edit-type-description"
+              required
+              error={editErrors.description}
+            >
               <Textarea
                 id="edit-type-description"
                 value={editTypeDescription}
-                onChange={(e) =>
-                  setEditTypeDescription(e.target.value)
-                }
+                onChange={(e) => {
+                  setEditTypeDescription(e.target.value);
+                  if (e.target.value.trim().length >= 10) {
+                    setEditErrors(prev => ({ ...prev, description: undefined }));
+                  }
+                }}
                 placeholder="Describe el tipo de proceso"
                 rows={3}
+                className={cn(editErrors.description && "border-destructive")}
               />
-            </div>
-            <div className="flex items-center space-x-2">
+            </FormField>
+
+            <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="edit-active"
                 checked={editTypeActive}
                 onCheckedChange={(c: boolean | "indeterminate") => setEditTypeActive(!!c)}
               />
-              <Label htmlFor="edit-active">Activo</Label>
+              <label
+                htmlFor="edit-active"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Tipo de proceso activo
+              </label>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditModal(false)}
-            >
+            <Button variant="outline" onClick={handleCloseEditModal} disabled={submitting}>
               Cancelar
             </Button>
-            <Button onClick={handleUpdateProcessType} disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            <Button onClick={handleUpdateProcessType} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Cambios'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 }

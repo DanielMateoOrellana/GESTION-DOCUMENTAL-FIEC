@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
 import {
@@ -164,8 +164,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
       const created = await createProcessTemplate(payload);
       console.log('Plantilla creada en backend:', created);
       toast.success(
-        `Plantilla "${created.name}" creada exitosamente con ${
-          created.steps?.length ?? steps.length
+        `Plantilla "${created.name}" creada exitosamente con ${created.steps?.length ?? steps.length
         } pasos`,
       );
       handleClose();
@@ -203,21 +202,19 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
           {/* Indicador de pasos */}
           <div className="flex items-center justify-center gap-2">
             <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                currentStep === 1
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 1
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted'
+                }`}
             >
               1
             </div>
             <div className="w-12 h-0.5 bg-muted" />
             <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                currentStep === 2
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 2
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted'
+                }`}
             >
               2
             </div>
@@ -390,7 +387,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                             <Checkbox
                               id={`required-${step.id}`}
                               checked={step.required}
-                              onCheckedChange={(checked) =>
+                              onCheckedChange={(checked: boolean) =>
                                 handleUpdateStep(
                                   step.id,
                                   'required',

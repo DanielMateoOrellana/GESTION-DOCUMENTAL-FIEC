@@ -12,7 +12,7 @@ import { Badge } from './ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { FileText, CheckCircle, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 import type { ProcessType } from '../api/processTypes';
 import { fetchProcessTypes } from '../api/processTypes';
@@ -116,9 +116,8 @@ export function ProcessTemplateSelector({
                 return (
                   <Card
                     key={type.id}
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      isSelected ? 'ring-2 ring-primary' : ''
-                    }`}
+                    className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''
+                      }`}
                     onClick={() => handleTypeSelect(type.id)}
                   >
                     <CardHeader>
@@ -160,7 +159,7 @@ export function ProcessTemplateSelector({
                   value={
                     selectedTemplateId?.toString() || availableTemplates[0]?.id.toString()
                   }
-                  onValueChange={(value) => setSelectedTemplateId(parseInt(value))}
+                  onValueChange={(value: string) => setSelectedTemplateId(parseInt(value))}
                 >
                   <SelectTrigger>
                     <SelectValue />

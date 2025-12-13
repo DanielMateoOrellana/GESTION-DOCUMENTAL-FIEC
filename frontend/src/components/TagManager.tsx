@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Tag, ProcessTag, ProcessInstance, User } from '../types';
 import { mockProcessInstances } from '../data/mockData';
 import { TagIcon, Plus, X } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface TagManagerProps {
   currentUser: User;
@@ -54,31 +54,31 @@ export function TagManager({ currentUser, processId, onTagsUpdated }: TagManager
 
   const validateTagName = (name: string): { valid: boolean; error?: string } => {
     if (!name || name.trim().length < TAG_VALIDATION.minLength) {
-      return { 
-        valid: false, 
-        error: `La etiqueta debe tener al menos ${TAG_VALIDATION.minLength} caracteres` 
+      return {
+        valid: false,
+        error: `La etiqueta debe tener al menos ${TAG_VALIDATION.minLength} caracteres`
       };
     }
 
     if (name.trim().length > TAG_VALIDATION.maxLength) {
-      return { 
-        valid: false, 
-        error: `La etiqueta no puede exceder ${TAG_VALIDATION.maxLength} caracteres` 
+      return {
+        valid: false,
+        error: `La etiqueta no puede exceder ${TAG_VALIDATION.maxLength} caracteres`
       };
     }
 
     if (!TAG_VALIDATION.pattern.test(name.trim())) {
-      return { 
-        valid: false, 
-        error: 'La etiqueta solo puede contener letras, números y espacios' 
+      return {
+        valid: false,
+        error: 'La etiqueta solo puede contener letras, números y espacios'
       };
     }
 
     // Check if tag already exists
     if (tags.some(t => t.name.toLowerCase() === name.trim().toLowerCase())) {
-      return { 
-        valid: false, 
-        error: 'Ya existe una etiqueta con este nombre' 
+      return {
+        valid: false,
+        error: 'Ya existe una etiqueta con este nombre'
       };
     }
 
@@ -104,7 +104,7 @@ export function TagManager({ currentUser, processId, onTagsUpdated }: TagManager
 
     setTags([...tags, newTag]);
     toast.success('Etiqueta creada exitosamente');
-    
+
     // Reset form
     setNewTagName('');
     setNewTagColor('#3B82F6');
@@ -132,7 +132,7 @@ export function TagManager({ currentUser, processId, onTagsUpdated }: TagManager
 
     setProcessTags([...processTags, newProcessTag]);
     toast.success('Etiqueta asignada al proceso');
-    
+
     if (onTagsUpdated) {
       onTagsUpdated();
     }
@@ -147,7 +147,7 @@ export function TagManager({ currentUser, processId, onTagsUpdated }: TagManager
       )
     );
     toast.success('Etiqueta removida del proceso');
-    
+
     if (onTagsUpdated) {
       onTagsUpdated();
     }
@@ -326,7 +326,7 @@ export function TagManager({ currentUser, processId, onTagsUpdated }: TagManager
           <DialogHeader>
             <DialogTitle>Gestionar Etiquetas del Proceso</DialogTitle>
             <DialogDescription>
-              {selectedProcess 
+              {selectedProcess
                 ? `${selectedProcess.title || `Proceso #${selectedProcess.id}`}`
                 : 'Seleccione un proceso'}
             </DialogDescription>

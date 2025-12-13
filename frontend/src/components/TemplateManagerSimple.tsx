@@ -18,11 +18,14 @@ import {
   SelectValue,
 } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Plus, Edit, Eye } from 'lucide-react';
+import { Plus, Edit, FileText, AlertTriangle, Filter } from 'lucide-react';
 import type { User } from '../types';
 import { toast } from 'sonner';
 import { CreateTemplateModal } from './CreateTemplateModal';
 import { EditTemplateModal } from './EditTemplateModal';
+import { EmptyState } from './ui/empty-state';
+import { TableSkeleton } from './ui/loading-spinner';
+import { cn } from './ui/utils';
 
 import {
   fetchProcessTemplates,
@@ -44,19 +47,22 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
 
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [templatesData, typesData] = await Promise.all([
         fetchProcessTemplates(),
         fetchProcessTypes()
       ]);
       setTemplates(templatesData);
       setProcessTypes(typesData);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError('No se pudieron cargar las plantillas. Por favor, intente nuevamente.');
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
@@ -65,7 +71,6 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredTemplates = templates.filter((template) => {
@@ -110,13 +115,20 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
     return tpl?.steps?.length ?? 0;
   };
 
+  const hasActiveFilters = filterType !== 'all' || filterStatus !== 'all';
+
+  const clearFilters = () => {
+    setFilterType('all');
+    setFilterStatus('all');
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1>Plantillas</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Plantillas</h1>
           <p className="text-muted-foreground">
-            Gestión de plantillas de procesos
+            Gestión de plantillas de procesos institucionales
           </p>
         </div>
         <div className="flex gap-2">
@@ -134,35 +146,51 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
 
       {/* Filtros */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filtros
+            </CardTitle>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de proceso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                {processTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id.toString()}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Tipo de proceso</label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className={cn(filterType !== 'all' && "border-primary")}>
+                  <SelectValue placeholder="Tipo de proceso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  {processTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Activa</SelectItem>
-                <SelectItem value="obsolete">Obsoleta</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Estado</label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className={cn(filterStatus !== 'all' && "border-primary")}>
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="active">Activas</SelectItem>
+                  <SelectItem value="obsolete">Obsoletas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -170,102 +198,149 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
       {/* Tabla de Plantillas */}
       <Card>
         <CardHeader>
-          <CardTitle>Plantillas ({filteredTemplates.length})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Plantillas
+            <Badge variant="secondary" className="ml-2">
+              {filteredTemplates.length}
+            </Badge>
+            {hasActiveFilters && (
+              <span className="text-sm font-normal text-muted-foreground">
+                (filtrado de {templates.length} total)
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Cargando plantillas...
-            </div>
+            <TableSkeleton rows={5} columns={7} />
+          ) : error ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Error al cargar plantillas"
+              description={error}
+              action={
+                <Button variant="outline" onClick={loadData}>
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : templates.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No hay plantillas creadas"
+              description="Las plantillas definen los pasos y la estructura de tus procesos. Crea la primera plantilla para comenzar."
+              action={
+                <Button onClick={() => setIsCreateModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear plantilla
+                </Button>
+              }
+            />
+          ) : filteredTemplates.length === 0 ? (
+            <EmptyState
+              icon={Filter}
+              title="Sin resultados"
+              description="No se encontraron plantillas que coincidan con los filtros seleccionados."
+              action={
+                <Button variant="outline" onClick={clearFilters}>
+                  Limpiar filtros
+                </Button>
+              }
+            />
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          selectedItems.length === filteredTemplates.length &&
-                          filteredTemplates.length > 0
-                        }
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Tipo de proceso</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Pasos</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTemplates.map((template) => {
-                    const stepCount = getStepCount(template.id);
-                    const processTypeName =
-                      template.processType?.name ?? 'Sin tipo';
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        selectedItems.length === filteredTemplates.length &&
+                        filteredTemplates.length > 0
+                      }
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Tipo de proceso</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Pasos</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTemplates.map((template) => {
+                  const stepCount = getStepCount(template.id);
+                  const processTypeName = template.processType?.name ?? 'Sin tipo';
 
-                    return (
-                      <TableRow key={template.id}>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedItems.includes(template.id)}
-                            onCheckedChange={() =>
-                              handleSelectItem(template.id)
-                            }
-                          />
-                        </TableCell>
+                  return (
+                    <TableRow
+                      key={template.id}
+                      className={cn(!template.isActive && "opacity-60")}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedItems.includes(template.id)}
+                          onCheckedChange={() => handleSelectItem(template.id)}
+                        />
+                      </TableCell>
 
-                        {/* Nombre real de la plantilla */}
-                        <TableCell>{template.name}</TableCell>
+                      <TableCell className="font-medium">{template.name}</TableCell>
 
-                        <TableCell className="max-w-md truncate">
+                      <TableCell className="max-w-md truncate">
+                        <span title={template.description}>
                           {template.description}
-                        </TableCell>
+                        </span>
+                      </TableCell>
 
-                        {/* Tipo de proceso desde backend */}
-                        <TableCell>{processTypeName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{processTypeName}</Badge>
+                      </TableCell>
 
-                        <TableCell>
-                          <Badge
-                            className={
-                              template.isActive
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }
+                      <TableCell>
+                        <Badge
+                          className={cn(
+                            template.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          )}
+                        >
+                          {template.isActive ? 'Activa' : 'Obsoleta'}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="flex items-center gap-1">
+                          <span className={cn(
+                            "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium",
+                            stepCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                          )}>
+                            {stepCount}
+                          </span>
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTemplateId(template.id);
+                              setIsEditModalOpen(true);
+                            }}
+                            title="Editar plantilla"
                           >
-                            {template.isActive ? 'Activa' : 'Obsoleta'}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell>{stepCount}</TableCell>
-
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingTemplateId(template.id);
-                                setIsEditModalOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-
-              {filteredTemplates.length === 0 && !loading && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No se encontraron plantillas</p>
-                </div>
-              )}
-            </>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
