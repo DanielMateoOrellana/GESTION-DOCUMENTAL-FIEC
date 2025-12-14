@@ -118,6 +118,9 @@ model ProcessInstance {
 
   // Pasos concretos del proceso
   steps StepInstance[]
+
+  // Etiquetas del proceso
+  tags ProcessInstanceTag[]
 }
 
 model StepInstance {
@@ -177,4 +180,37 @@ model User {
 
   processInstances ProcessInstance[] @relation("UserProcessInstances")
   uploadedFiles    StepFile[]        @relation("UserStepFiles")
+  createdTags      Tag[]             @relation("UserCreatedTags")
+}
+
+// Modelo de Etiquetas
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  color String // Color en formato hexadecimal, ej: "#EF4444"
+
+  // Quién creó la etiqueta
+  createdById Int?
+  createdBy   User? @relation("UserCreatedTags", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación muchos a muchos con ProcessInstance
+  processInstances ProcessInstanceTag[]
+}
+
+// Tabla intermedia para relación muchos a muchos
+model ProcessInstanceTag {
+  id Int @id @default(autoincrement())
+
+  processInstanceId Int
+  processInstance   ProcessInstance @relation(fields: [processInstanceId], references: [id], onDelete: Cascade)
+
+  tagId Int
+  tag   Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([processInstanceId, tagId])
 }

@@ -62,12 +62,7 @@ type ApiStep = {
   files?: StepFileSummary[];
 };
 
-// Etiquetas mock mientras no haya backend de tags
-const mockProcessTags = [
-  { process_id: 1, tag_id: 1, name: "Urgente", color: "#EF4444" },
-  { process_id: 1, tag_id: 2, name: "Prioritario", color: "#F59E0B" },
-  { process_id: 2, tag_id: 3, name: "Revisado", color: "#10B981" },
-];
+// Las etiquetas ahora vienen del backend en process.tags
 
 export function ProcessDetailSimple({
   processId,
@@ -241,21 +236,22 @@ export function ProcessDetailSimple({
     );
   }
 
-  // Responsable basado en backend + usuario actual, sin mocks
-  const isCurrentUserResponsible =
-    process.responsibleUserId != null &&
-    process.responsibleUserId === currentUser.id;
-
+  // Responsable - usar el nombre del backend si está disponible
   const responsibleName =
-    isCurrentUserResponsible
-      ? currentUser.fullName
-      : process.responsibleUserId != null
-        ? `Usuario #${process.responsibleUserId}`
-        : "—";
+    process.responsibleUser?.fullName ||
+    (process.responsibleUserId != null
+      ? `Usuario #${process.responsibleUserId}`
+      : "Sin asignar");
 
   const createdAtRaw = process.createdAt;
   const state = getSimplifiedState(process.estado);
-  const tags = mockProcessTags.filter((t) => t.process_id === processId);
+
+  // Etiquetas del proceso desde el backend
+  const tags = process.tags?.map(t => ({
+    id: t.tag.id,
+    name: t.tag.name,
+    color: t.tag.color,
+  })) || [];
 
   const completedSteps = steps.filter((s) => s.estado === "COMPLETADO").length;
   const progressPercent =
@@ -336,27 +332,29 @@ export function ProcessDetailSimple({
             </div>
           </div>
 
-          {tags.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <div className="text-sm text-muted-foreground mb-2">
-                  Etiquetas
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <Badge
-                      key={tag.tag_id}
-                      style={{ backgroundColor: tag.color, color: "#fff" }}
-                    >
-                      <TagIcon className="w-3 h-3 mr-1" />
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
+          {/* Etiquetas - siempre visible */}
+          <Separator />
+          <div>
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <TagIcon className="w-4 h-4" />
+              Etiquetas
+            </div>
+            {tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    style={{ backgroundColor: tag.color, color: "#fff" }}>
+                    {tag.name}
+                  </Badge>
+                ))}
               </div>
-            </>
-          )}
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Este proceso no tiene etiquetas asignadas
+              </span>
+            )}
+          </div>
 
           {steps.length > 0 && (
             <>

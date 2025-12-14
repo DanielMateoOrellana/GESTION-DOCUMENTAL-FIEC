@@ -20,9 +20,10 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, Eye, X } from "lucide-react";
+import { Search, Plus, X, Tag as TagIcon, Loader2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
+import { TagManagementModal } from "./TagManagementModal";
 import { Progress } from "./ui/progress";
 
 import {
@@ -31,17 +32,29 @@ import {
   type EstadoProceso,
 } from "../api/processInstances";
 import { fetchProcessTypes, type ProcessType } from "../api/processTypes";
+import {
+  fetchTags,
+  createTag,
+  assignTagToProcess,
+  removeTagFromProcess,
+  type Tag,
+} from "../api/tags";
 
 interface ProcessListSimpleProps {
   currentUser: User;
   onViewChange: (view: string, data?: any) => void;
 }
 
-// Mock tags (las que ya existen)
-const mockTags = [
-  { id: 1, name: "Urgente", color: "#EF4444" },
-  { id: 2, name: "Prioritario", color: "#F59E0B" },
-  { id: 3, name: "Revisado", color: "#10B981" },
+// Colores predeterminados para nuevas etiquetas
+const TAG_COLORS = [
+  "#EF4444", // red
+  "#F59E0B", // amber
+  "#10B981", // emerald
+  "#3B82F6", // blue
+  "#8B5CF6", // violet
+  "#EC4899", // pink
+  "#06B6D4", // cyan
+  "#84CC16", // lime
 ];
 
 export function ProcessListSimple({
@@ -52,16 +65,17 @@ export function ProcessListSimple({
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterState, setFilterState] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterTag, setFilterTag] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
-  const [processTags, setProcessTags] = useState<Record<number, number[]>>({});
   const [editingTags, setEditingTags] = useState<number | null>(null);
-  const [isCreateProcessModalOpen, setIsCreateProcessModalOpen] =
-    useState(false);
-  const [allTags, setAllTags] = useState(mockTags);
+  const [isCreateProcessModalOpen, setIsCreateProcessModalOpen] = useState(false);
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [savingTag, setSavingTag] = useState(false);
 
   const [instances, setInstances] = useState<ApiProcessInstance[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,28 +88,35 @@ export function ProcessListSimple({
     )
   ).sort((a, b) => b - a);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [data, types] = await Promise.all([
-          fetchProcessInstances(),
-          fetchProcessTypes(),
-        ]);
-        setInstances(data);
-        setProcessTypes(types);
-      } catch (e) {
-        console.error(e);
-        setError("No se pudieron cargar los procesos o tipos de proceso");
-        toast.error("Error cargando procesos");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [data, types, tags] = await Promise.all([
+        fetchProcessInstances(),
+        fetchProcessTypes(),
+        fetchTags(),
+      ]);
+      setInstances(data);
+      setProcessTypes(types);
+      setAllTags(tags);
+    } catch (e) {
+      console.error(e);
+      setError("No se pudieron cargar los procesos");
+      toast.error("Error cargando procesos");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    load();
+  useEffect(() => {
+    loadData();
   }, []);
+
+  // Obtener etiquetas de un proceso desde los datos incluidos
+  const getProcessTagIds = (process: ApiProcessInstance): number[] => {
+    return process.tags?.map((t) => t.tagId) || [];
+  };
 
   const filteredProcesses = instances.filter((process) => {
     const matchesSearch = (process.title ?? "")
@@ -119,7 +140,11 @@ export function ProcessListSimple({
         process.processTypeId !== undefined &&
         process.processTypeId.toString() === filterType);
 
-    return matchesSearch && matchesYear && matchesState && matchesType;
+    const matchesTag =
+      filterTag === "all" ||
+      getProcessTagIds(process).includes(Number(filterTag));
+
+    return matchesSearch && matchesYear && matchesState && matchesType && matchesTag;
   });
 
   const handleSelectAll = () => {
@@ -146,58 +171,117 @@ export function ProcessListSimple({
     toast.success(`Exportando ${selectedItems.length} proceso(s)`);
   };
 
-  const toggleTag = (processId: number, tagId: number) => {
-    const current = processTags[processId] || [];
-    if (current.includes(tagId)) {
-      setProcessTags({
-        ...processTags,
-        [processId]: current.filter((t) => t !== tagId),
-      });
-    } else {
-      setProcessTags({
-        ...processTags,
-        [processId]: [...current, tagId],
-      });
+  const toggleTag = async (processId: number, tagId: number) => {
+    const process = instances.find((p) => p.id === processId);
+    if (!process) return;
+
+    const currentTagIds = getProcessTagIds(process);
+    const isAssigned = currentTagIds.includes(tagId);
+
+    try {
+      if (isAssigned) {
+        await removeTagFromProcess(processId, tagId);
+        // Actualizar el estado local
+        setInstances((prev) =>
+          prev.map((p) =>
+            p.id === processId
+              ? { ...p, tags: p.tags?.filter((t) => t.tagId !== tagId) }
+              : p
+          )
+        );
+        toast.success("Etiqueta removida");
+      } else {
+        const assignment = await assignTagToProcess(processId, tagId);
+        // Actualizar el estado local
+        setInstances((prev) =>
+          prev.map((p) =>
+            p.id === processId
+              ? {
+                ...p,
+                tags: [
+                  ...(p.tags || []),
+                  {
+                    id: assignment.id,
+                    processInstanceId: processId,
+                    tagId: tagId,
+                    tag: allTags.find((t) => t.id === tagId)!,
+                    assignedAt: new Date().toISOString(),
+                  },
+                ],
+              }
+              : p
+          )
+        );
+        toast.success("Etiqueta asignada");
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.response?.data?.message || "Error al modificar etiqueta");
     }
   };
 
-  const handleCreateTag = (processId: number) => {
+  const handleCreateTag = async (processId: number) => {
     if (!newTagName.trim()) {
       toast.error("Escriba un nombre para la etiqueta");
       return;
     }
 
+    // Verificar si ya existe
     const existingTag = allTags.find(
       (t) => t.name.toLowerCase() === newTagName.trim().toLowerCase()
     );
 
     if (existingTag) {
-      toggleTag(processId, existingTag.id);
+      // Ya existe, solo asignarla
+      await toggleTag(processId, existingTag.id);
       setNewTagName("");
-      toast.info("Etiqueta existente agregada");
-    } else {
-      const colors = [
-        "#EF4444",
-        "#F59E0B",
-        "#10B981",
-        "#3B82F6",
-        "#8B5CF6",
-        "#EC4899",
-      ];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      const newTag = {
-        id: allTags.length + 1,
+      return;
+    }
+
+    // Crear nueva etiqueta
+    try {
+      setSavingTag(true);
+      const randomColor = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+
+      const newTag = await createTag({
         name: newTagName.trim(),
         color: randomColor,
-      };
-
-      setAllTags([...allTags, newTag]);
-      setProcessTags({
-        ...processTags,
-        [processId]: [...(processTags[processId] || []), newTag.id],
       });
+
+      // Agregar a la lista de todas las etiquetas
+      setAllTags((prev) => [...prev, newTag]);
+
+      // Asignar al proceso
+      const assignment = await assignTagToProcess(processId, newTag.id);
+
+      // Actualizar el proceso con la nueva etiqueta
+      setInstances((prev) =>
+        prev.map((p) =>
+          p.id === processId
+            ? {
+              ...p,
+              tags: [
+                ...(p.tags || []),
+                {
+                  id: assignment.id,
+                  processInstanceId: processId,
+                  tagId: newTag.id,
+                  tag: newTag,
+                  assignedAt: new Date().toISOString(),
+                },
+              ],
+            }
+            : p
+        )
+      );
+
       setNewTagName("");
-      toast.success(`Etiqueta "${newTag.name}" creada`);
+      toast.success(`Etiqueta "${newTag.name}" creada y asignada`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.response?.data?.message || "Error al crear etiqueta");
+    } finally {
+      setSavingTag(false);
     }
   };
 
@@ -213,11 +297,21 @@ export function ProcessListSimple({
     return processTypes.find((t) => t.id === id)?.name ?? `Tipo #${id}`;
   };
 
+  const hasActiveFilters = filterYear !== "all" || filterState !== "all" || filterType !== "all" || filterTag !== "all";
+
+  const clearFilters = () => {
+    setFilterYear("all");
+    setFilterState("all");
+    setFilterType("all");
+    setFilterTag("all");
+    setSearchTerm("");
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1>Procesos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Procesos</h1>
           <p className="text-muted-foreground">
             Gestión de procesos institucionales
           </p>
@@ -228,6 +322,10 @@ export function ProcessListSimple({
               Exportar seleccionados ({selectedItems.length})
             </Button>
           )}
+          <Button variant="outline" onClick={() => setIsTagManagerOpen(true)}>
+            <Settings className="w-4 h-4 mr-2" />
+            Gestor de Etiquetas
+          </Button>
           <Button onClick={() => setIsCreateProcessModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo proceso
@@ -237,11 +335,18 @@ export function ProcessListSimple({
 
       {/* Filtros */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Filtros</CardTitle>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -252,7 +357,7 @@ export function ProcessListSimple({
               />
             </div>
             <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger>
+              <SelectTrigger className={filterYear !== "all" ? "border-primary" : ""}>
                 <SelectValue placeholder="Año" />
               </SelectTrigger>
               <SelectContent>
@@ -265,7 +370,7 @@ export function ProcessListSimple({
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger>
+              <SelectTrigger className={filterType !== "all" ? "border-primary" : ""}>
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -278,7 +383,7 @@ export function ProcessListSimple({
               </SelectContent>
             </Select>
             <Select value={filterState} onValueChange={setFilterState}>
-              <SelectTrigger>
+              <SelectTrigger className={filterState !== "all" ? "border-primary" : ""}>
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -287,9 +392,33 @@ export function ProcessListSimple({
                 <SelectItem value="completed">Completado</SelectItem>
               </SelectContent>
             </Select>
+            {/* Filtro por Etiquetas */}
+            <Select value={filterTag} onValueChange={setFilterTag}>
+              <SelectTrigger className={filterTag !== "all" ? "border-primary" : ""}>
+                <div className="flex items-center gap-2">
+                  <TagIcon className="w-4 h-4" />
+                  <SelectValue placeholder="Etiqueta" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las etiquetas</SelectItem>
+                {allTags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id.toString()}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {loading && (
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-3 text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
               Cargando procesos...
             </p>
           )}
@@ -300,7 +429,15 @@ export function ProcessListSimple({
       {/* Tabla de Procesos */}
       <Card>
         <CardHeader>
-          <CardTitle>Procesos ({filteredProcesses.length})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Procesos
+            <Badge variant="secondary">{filteredProcesses.length}</Badge>
+            {hasActiveFilters && (
+              <span className="text-sm font-normal text-muted-foreground">
+                (filtrado de {instances.length} total)
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -322,20 +459,18 @@ export function ProcessListSimple({
                 <TableHead>Estado</TableHead>
                 <TableHead>Progreso</TableHead>
                 <TableHead>Etiquetas</TableHead>
-                {/* Columna Acciones eliminada */}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProcesses.map((process) => {
                 const state = getSimplifiedState(process.estado);
-                const tags = processTags[process.id] || [];
+                const processTagIds = getProcessTagIds(process);
 
                 const responsibleLabel =
-                  process.responsibleUserId === currentUser.id
-                    ? currentUser.fullName
-                    : process.responsibleUserId != null
-                      ? `Usuario #${process.responsibleUserId}`
-                      : "—";
+                  process.responsibleUser?.fullName ||
+                  (process.responsibleUserId != null
+                    ? `Usuario #${process.responsibleUserId}`
+                    : "Sin asignar");
 
                 const minSteps = process.steps || [];
                 const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
@@ -360,13 +495,11 @@ export function ProcessListSimple({
                     <TableCell className="max-w-xs truncate">
                       {process.title ||
                         (process.processTypeId
-                          ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""
-                          }`
+                          ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""}`
                           : `Proceso ${process.id}`)}
                     </TableCell>
                     <TableCell>
-                      {process.year ??
-                        new Date(process.createdAt).getFullYear()}
+                      {process.year ?? new Date(process.createdAt).getFullYear()}
                     </TableCell>
                     <TableCell>{responsibleLabel}</TableCell>
                     <TableCell>
@@ -388,19 +521,20 @@ export function ProcessListSimple({
                     <TableCell>
                       {editingTags === process.id ? (
                         <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
                             {allTags.map((tag) => (
                               <Badge
                                 key={tag.id}
                                 style={{
-                                  backgroundColor: tags.includes(tag.id)
+                                  backgroundColor: processTagIds.includes(tag.id)
                                     ? tag.color
                                     : "#e5e7eb",
-                                  color: tags.includes(tag.id)
+                                  color: processTagIds.includes(tag.id)
                                     ? "#fff"
                                     : "#6b7280",
                                   cursor: "pointer",
                                 }}
+                                className="transition-all hover:opacity-80"
                                 onClick={() => toggleTag(process.id, tag.id)}
                               >
                                 {tag.name}
@@ -419,13 +553,19 @@ export function ProcessListSimple({
                                 }
                               }}
                               className="h-7 text-xs"
+                              disabled={savingTag}
                             />
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleCreateTag(process.id)}
+                              disabled={savingTag}
                             >
-                              <Plus className="w-3 h-3" />
+                              {savingTag ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Plus className="w-3 h-3" />
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
@@ -441,15 +581,16 @@ export function ProcessListSimple({
                         </div>
                       ) : (
                         <div
-                          className="flex flex-wrap gap-1 cursor-pointer"
+                          className="flex flex-wrap gap-1 cursor-pointer min-h-[24px]"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingTags(process.id);
                           }}
                         >
-                          {tags.length > 0 ? (
-                            tags.map((tagId) => {
-                              const tag = allTags.find((t) => t.id === tagId);
+                          {processTagIds.length > 0 ? (
+                            processTagIds.slice(0, 3).map((tagId) => {
+                              const tag = allTags.find((t) => t.id === tagId) ||
+                                process.tags?.find(t => t.tagId === tagId)?.tag;
                               return tag ? (
                                 <Badge
                                   key={tag.id}
@@ -463,9 +604,14 @@ export function ProcessListSimple({
                               ) : null;
                             })
                           ) : (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground hover:text-foreground">
                               + Agregar
                             </span>
+                          )}
+                          {processTagIds.length > 3 && (
+                            <Badge variant="secondary">
+                              +{processTagIds.length - 3}
+                            </Badge>
                           )}
                         </div>
                       )}
@@ -477,7 +623,13 @@ export function ProcessListSimple({
           </Table>
           {filteredProcesses.length === 0 && !loading && (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No se encontraron procesos</p>
+              <TagIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No se encontraron procesos</p>
+              {hasActiveFilters && (
+                <Button variant="link" onClick={clearFilters} className="mt-2">
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -492,6 +644,13 @@ export function ProcessListSimple({
           // Actualizar lista cuando se crea un nuevo proceso
           setInstances((prev) => [...prev, instance]);
         }}
+      />
+
+      {/* Modal para gestionar etiquetas */}
+      <TagManagementModal
+        open={isTagManagerOpen}
+        onOpenChange={setIsTagManagerOpen}
+        onTagsUpdated={loadData}
       />
     </div>
   );

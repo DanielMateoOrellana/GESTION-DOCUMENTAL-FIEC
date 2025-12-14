@@ -65,6 +65,11 @@ export class ProcessInstancesService {
           orderBy: { id: 'asc' }
         },
         responsibleUser: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
       orderBy: { id: 'desc' },
     });
@@ -84,6 +89,11 @@ export class ProcessInstancesService {
             templateStep: true,
           },
           orderBy: { id: 'asc' },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
         },
       },
     });

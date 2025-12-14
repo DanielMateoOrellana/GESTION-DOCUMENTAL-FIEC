@@ -55,6 +55,17 @@ export type ProcessInstance = {
     updatedAt: string;
   };
   steps?: StepInstance[];
+  tags?: {
+    id: number;
+    processInstanceId: number;
+    tagId: number;
+    tag: {
+      id: number;
+      name: string;
+      color: string;
+    };
+    assignedAt: string;
+  }[];
 };
 
 export type CreateProcessInstanceInput = {
