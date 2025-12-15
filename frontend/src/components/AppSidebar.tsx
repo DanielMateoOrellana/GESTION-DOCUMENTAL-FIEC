@@ -9,6 +9,7 @@ import {
   TrendingUp,
   TagIcon,
   List,
+  History,
 } from "lucide-react";
 import {
   Sidebar,

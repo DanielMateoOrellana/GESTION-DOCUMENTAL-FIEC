@@ -29,6 +29,11 @@ model ProcessCategory {
   name        String   @unique // Ej: "Evaluación Docente", "Gestión Académica"
   description String?
   isActive    Boolean  @default(true)
+
+  // Quién creó la categoría
+  createdById Int?
+  createdBy   User? @relation("UserCreatedCategories", fields: [createdById], references: [id])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -45,6 +50,10 @@ model ProcessType {
   categoryId Int
   category   ProcessCategory @relation(fields: [categoryId], references: [id])
 
+  // Quién creó el tipo de proceso
+  createdById Int?
+  createdBy   User? @relation("UserCreatedProcessTypes", fields: [createdById], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -60,6 +69,10 @@ model ProcessTemplate {
 
   processTypeId Int
   processType   ProcessType @relation(fields: [processTypeId], references: [id])
+
+  // Quién creó la plantilla
+  createdById Int?
+  createdBy   User? @relation("UserCreatedTemplates", fields: [createdById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -103,7 +116,11 @@ model ProcessInstance {
   templateId Int
   template   ProcessTemplate @relation(fields: [templateId], references: [id])
 
-  // Responsable del proceso
+  // Quién creó el proceso (diferente de responsable)
+  createdById Int?
+  createdBy   User? @relation("UserCreatedProcessInstances", fields: [createdById], references: [id])
+
+  // Responsable del proceso (quien lo gestiona actualmente)
   responsibleUserId Int?
   responsibleUser   User? @relation("UserProcessInstances", fields: [responsibleUserId], references: [id])
 
@@ -178,9 +195,19 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relaciones de gestión
   processInstances ProcessInstance[] @relation("UserProcessInstances")
   uploadedFiles    StepFile[]        @relation("UserStepFiles")
-  createdTags      Tag[]             @relation("UserCreatedTags")
+  
+  // Relaciones de creación (quién creó qué)
+  createdCategories       ProcessCategory[]  @relation("UserCreatedCategories")
+  createdProcessTypes     ProcessType[]      @relation("UserCreatedProcessTypes")
+  createdTemplates        ProcessTemplate[]  @relation("UserCreatedTemplates")
+  createdProcessInstances ProcessInstance[]  @relation("UserCreatedProcessInstances")
+  createdTags             Tag[]              @relation("UserCreatedTags")
+  
+  // Bitácora
+  auditLogs AuditLog[] @relation("UserAuditLogs")
 }
 
 // Modelo de Etiquetas
@@ -213,4 +240,40 @@ model ProcessInstanceTag {
   assignedAt DateTime @default(now())
 
   @@unique([processInstanceId, tagId])
+}
+
+// Bitácora - Registro de todas las acciones del sistema
+model AuditLog {
+  id Int @id @default(autoincrement())
+
+  // Tipo de acción: CREATE, UPDATE, DELETE, LOGIN, LOGOUT, UPLOAD, DOWNLOAD, ASSIGN, UNASSIGN
+  action String
+
+  // Tipo de entidad afectada: USER, PROCESS_TYPE, PROCESS_TEMPLATE, PROCESS_INSTANCE, STEP, TAG, FILE, etc.
+  entityType String
+
+  // ID de la entidad afectada (opcional, puede ser null para acciones como login)
+  entityId Int?
+
+  // Descripción legible de la acción
+  description String
+
+  // Detalles adicionales en formato JSON (opcional)
+  details String? // JSON stringificado con datos adicionales
+
+  // Usuario que realizó la acción
+  userId Int?
+  user   User? @relation("UserAuditLogs", fields: [userId], references: [id])
+
+  // IP del usuario (opcional)
+  ipAddress String?
+
+  // Fecha y hora de la acción
+  createdAt DateTime @default(now())
+
+  // Índices para búsquedas eficientes
+  @@index([action])
+  @@index([entityType])
+  @@index([userId])
+  @@index([createdAt])
 }

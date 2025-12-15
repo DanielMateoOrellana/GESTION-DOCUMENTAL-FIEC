@@ -1,13 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 import type { Express } from 'express';
 
 @Injectable()
 export class StepFilesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) { }
 
   async upload(stepId: number, file: Express.Multer.File, userId?: number) {
-    // ... (existing upload logic) ...
     // última versión + 1
     const last = await this.prisma.stepFile.findFirst({
       where: { stepId },
@@ -53,6 +56,36 @@ export class StepFilesService {
       (s) => s.estado === 'COMPLETADO',
     );
 
+    // Registrar en bitácora - subida de archivo
+    await this.auditLog.log({
+      action: AuditActions.UPLOAD,
+      entityType: EntityTypes.FILE,
+      entityId: created.id,
+      description: `Archivo "${file.originalname}" subido al paso #${stepId}`,
+      details: {
+        stepId,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        version,
+        processInstanceId: step.processInstanceId,
+      },
+      userId,
+    });
+
+    // Si el paso se completó, registrar también
+    await this.auditLog.log({
+      action: AuditActions.COMPLETE,
+      entityType: EntityTypes.STEP_INSTANCE,
+      entityId: stepId,
+      description: `Paso "${step.title}" completado`,
+      details: {
+        processInstanceId: step.processInstanceId,
+        fileId: created.id,
+      },
+      userId,
+    });
+
     if (allStepsCompleted) {
       // 3. Si todo está completo, marcar el proceso como COMPLETADO
       await this.prisma.processInstance.update({
@@ -61,6 +94,18 @@ export class StepFilesService {
           estado: 'COMPLETADO',
           completedAt: new Date(),
         },
+      });
+
+      // Registrar en bitácora - proceso completado
+      await this.auditLog.log({
+        action: AuditActions.COMPLETE,
+        entityType: EntityTypes.PROCESS_INSTANCE,
+        entityId: step.processInstance.id,
+        description: `Proceso "${step.processInstance.title || `#${step.processInstance.id}`}" completado`,
+        details: {
+          totalSteps: step.processInstance.steps.length,
+        },
+        userId,
       });
     }
     // ---------------------------------
@@ -92,7 +137,7 @@ export class StepFilesService {
     });
   }
 
-  async getFile(stepId: number, fileId: number) {
+  async getFile(stepId: number, fileId: number, userId?: number) {
     const file = await this.prisma.stepFile.findFirst({
       where: { id: fileId, stepId },
     });
@@ -101,10 +146,20 @@ export class StepFilesService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
+    // Registrar descarga en bitácora
+    await this.auditLog.log({
+      action: AuditActions.DOWNLOAD,
+      entityType: EntityTypes.FILE,
+      entityId: fileId,
+      description: `Archivo "${file.originalName}" descargado`,
+      details: { stepId, fileName: file.originalName },
+      userId,
+    });
+
     return file;
   }
 
-  async deleteFile(stepId: number, fileId: number) {
+  async deleteFile(stepId: number, fileId: number, userId?: number) {
     const file = await this.prisma.stepFile.findFirst({
       where: { id: fileId, stepId },
     });
@@ -115,6 +170,16 @@ export class StepFilesService {
 
     await this.prisma.stepFile.delete({
       where: { id: fileId },
+    });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.DELETE,
+      entityType: EntityTypes.FILE,
+      entityId: fileId,
+      description: `Archivo "${file.originalName}" eliminado del paso #${stepId}`,
+      details: { stepId, fileName: file.originalName },
+      userId,
     });
 
     // Verificar si quedan archivos en el paso
@@ -132,8 +197,7 @@ export class StepFilesService {
         },
       });
 
-      // Revertir proceso a PENDIENTE si estaba completado?
-      // Buscamos el proceso
+      // Revertir proceso a PENDIENTE si estaba completado
       const step = await this.prisma.stepInstance.findUnique({
         where: { id: stepId },
         include: { processInstance: true }

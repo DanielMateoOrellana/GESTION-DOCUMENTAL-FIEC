@@ -2,20 +2,23 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessTemplateDto } from './dto/create-process-template.dto';
 import { UpdateProcessTemplateDto } from './dto/update-process-template.dto';
+import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class ProcessTemplatesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
+  ) { }
 
-  async create(dto: CreateProcessTemplateDto) {
-    return this.prisma.processTemplate.create({
+  async create(dto: CreateProcessTemplateDto, userId?: number) {
+    const template = await this.prisma.processTemplate.create({
       data: {
         name: dto.name,
         description: dto.description,
         isActive: dto.isActive ?? true,
-        processType: {
-          connect: { id: dto.processTypeId },
-        },
+        processTypeId: dto.processTypeId,
+        createdById: userId,
         steps:
           dto.steps && dto.steps.length > 0
             ? {
@@ -36,11 +39,30 @@ export class ProcessTemplatesService {
             category: true,
           },
         },
+        createdBy: {
+          select: { id: true, fullName: true },
+        },
         steps: {
           orderBy: { order: 'asc' },
         },
       },
     });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.CREATE,
+      entityType: EntityTypes.PROCESS_TEMPLATE,
+      entityId: template.id,
+      description: `Plantilla "${template.name}" creada`,
+      details: {
+        name: template.name,
+        processTypeId: dto.processTypeId,
+        stepsCount: dto.steps?.length || 0,
+      },
+      userId,
+    });
+
+    return template;
   }
 
   findAll() {
@@ -81,9 +103,9 @@ export class ProcessTemplatesService {
     return template;
   }
 
-  async update(id: number, dto: UpdateProcessTemplateDto) {
+  async update(id: number, dto: UpdateProcessTemplateDto, userId?: number) {
     // Transaction to update steps safely
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Update template details
       await tx.processTemplate.update({
         where: { id },
@@ -97,11 +119,6 @@ export class ProcessTemplatesService {
 
       // 2. Handle steps if provided
       if (dto.steps && dto.steps.length > 0) {
-        // Fetch existing steps to match or update
-        // We assume steps in DTO correspond to existing steps in order.
-        // This is a simplification based on the prompt "only edit names and description".
-        // The safest way without IDs in DTO is to iterate by index.
-
         const existingSteps = await tx.processTemplateStep.findMany({
           where: { templateId: id },
           orderBy: { order: 'asc' },
@@ -122,7 +139,7 @@ export class ProcessTemplatesService {
               },
             });
           } else {
-            // Create new step if user added one (though we try to prevent this in UI)
+            // Create new step if user added one
             await tx.processTemplateStep.create({
               data: {
                 templateId: id,
@@ -145,12 +162,39 @@ export class ProcessTemplatesService {
         }
       });
     });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.UPDATE,
+      entityType: EntityTypes.PROCESS_TEMPLATE,
+      entityId: id,
+      description: `Plantilla "${result?.name}" actualizada`,
+      details: {
+        name: dto.name,
+        stepsUpdated: dto.steps?.length || 0,
+      },
+      userId,
+    });
+
+    return result;
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.processTemplate.delete({
+  async remove(id: number, userId?: number) {
+    const template = await this.findOne(id);
+
+    await this.prisma.processTemplate.delete({
       where: { id },
     });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.DELETE,
+      entityType: EntityTypes.PROCESS_TEMPLATE,
+      entityId: id,
+      description: `Plantilla "${template.name}" eliminada`,
+      userId,
+    });
+
+    return template;
   }
 }

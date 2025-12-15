@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import { ProcessTemplatesService } from './process-templates.service';
 import { CreateProcessTemplateDto } from './dto/create-process-template.dto';
@@ -14,11 +15,12 @@ import { UpdateProcessTemplateDto } from './dto/update-process-template.dto';
 
 @Controller('process-templates')
 export class ProcessTemplatesController {
-  constructor(private readonly service: ProcessTemplatesService) {}
+  constructor(private readonly service: ProcessTemplatesService) { }
 
   @Post()
-  create(@Body() dto: CreateProcessTemplateDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateProcessTemplateDto, @Req() req: any) {
+    const userId = req.user?.id;
+    return this.service.create(dto, userId);
   }
 
   @Get()
@@ -35,12 +37,15 @@ export class ProcessTemplatesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProcessTemplateDto,
+    @Req() req: any,
   ) {
-    return this.service.update(id, dto);
+    const userId = req.user?.id;
+    return this.service.update(id, dto, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const userId = req.user?.id;
+    return this.service.remove(id, userId);
   }
 }

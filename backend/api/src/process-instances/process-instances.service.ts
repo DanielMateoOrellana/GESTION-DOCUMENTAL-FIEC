@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessInstanceDto } from './dto/create-process-instance.dto';
 import { EstadoProceso, EstadoPaso } from '@prisma/client';
+import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class ProcessInstancesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
+  ) { }
 
   async create(dto: CreateProcessInstanceDto, userId: number) {
     // 1) Buscar la plantilla con sus pasos
@@ -26,14 +30,15 @@ export class ProcessInstancesService {
     }
 
     // 3) Crear la instancia de proceso + sus pasos
-    return this.prisma.processInstance.create({
+    const instance = await this.prisma.processInstance.create({
       data: {
         title: dto.title,
         estado: EstadoProceso.PENDIENTE,
         processTypeId: dto.processTypeId,
         templateId: dto.templateId,
         comment: dto.comment ?? null,
-        responsibleUserId: userId,      // <- aquí usamos el usuario logueado
+        createdById: userId, // Quién creó el proceso
+        responsibleUserId: userId, // Responsable inicial = creador
         year: dto.year ?? null,
         month: dto.month ?? null,
         dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
@@ -49,11 +54,31 @@ export class ProcessInstancesService {
       include: {
         processType: true,
         template: true,
+        createdBy: {
+          select: { id: true, fullName: true },
+        },
         steps: {
           orderBy: { id: 'asc' },
         },
       },
     });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.CREATE,
+      entityType: EntityTypes.PROCESS_INSTANCE,
+      entityId: instance.id,
+      description: `Proceso "${instance.title || `Proceso #${instance.id}`}" creado`,
+      details: {
+        processTypeId: dto.processTypeId,
+        templateId: dto.templateId,
+        year: dto.year,
+        stepsCount: template.steps.length,
+      },
+      userId,
+    });
+
+    return instance;
   }
 
   findAll() {

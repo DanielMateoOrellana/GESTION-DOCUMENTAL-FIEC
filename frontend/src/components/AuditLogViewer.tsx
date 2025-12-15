@@ -1,243 +1,226 @@
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Badge } from './ui/badge';
-import { AuditLog, User } from '../types';
-import { mockAuditLog, mockUsers } from '../data/mockData';
-import { FileText, Download, Filter, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { User } from "../types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
+  Search,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  User as UserIcon,
+  FileText,
+  RefreshCw,
+  Eye,
+  Download,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  fetchAuditLogs,
+  fetchActionTypes,
+  fetchEntityTypes,
+  type AuditLog,
+  type AuditLogFilter,
+  actionLabels,
+  entityTypeLabels,
+  actionColors,
+} from "../api/auditLogs";
 
 interface AuditLogViewerProps {
   currentUser: User;
 }
 
-// Extended mock audit log with more entries and IP addresses
-const extendedAuditLog: AuditLog[] = [
-  ...mockAuditLog,
-  {
-    id: 4,
-    user_id: 1,
-    action: 'CREATE_PROCESS',
-    entity_type: 'process_instance',
-    entity_id: 5,
-    details: 'Created process: Evaluación Docente Semestre 2025-1',
-    created_at: '2025-06-01T08:00:00Z',
-    ip_address: '192.168.1.10'
-  },
-  {
-    id: 5,
-    user_id: 2,
-    action: 'APPROVE_STEP',
-    entity_type: 'step_instance',
-    entity_id: 4,
-    details: 'Approved step: Elaboración de Informe',
-    created_at: '2025-10-02T15:30:00Z',
-    ip_address: '192.168.1.15'
-  },
-  {
-    id: 6,
-    user_id: 1,
-    action: 'CLOSE_PROCESS',
-    entity_type: 'process_instance',
-    entity_id: 3,
-    details: 'Closed process with 100% completion',
-    created_at: '2025-09-30T16:45:00Z',
-    ip_address: '192.168.1.10'
-  },
-  {
-    id: 7,
-    user_id: 3,
-    action: 'EXPORT_DATA',
-    entity_type: 'export_log',
-    entity_id: 1,
-    details: 'Exported process data to CSV (filters: year=2025, month=9)',
-    created_at: '2025-10-05T10:20:00Z',
-    ip_address: '192.168.1.20'
-  },
-  {
-    id: 8,
-    user_id: 2,
-    action: 'OBSERVE_STEP',
-    entity_type: 'step_instance',
-    entity_id: 2,
-    details: 'Observed step with comment: Falta documentación complementaria',
-    created_at: '2025-10-16T14:30:00Z',
-    ip_address: '192.168.1.15'
-  },
-  {
-    id: 9,
-    user_id: 1,
-    action: 'CREATE_USER',
-    entity_type: 'user',
-    entity_id: 4,
-    details: 'Created new user: Dr. Pedro López',
-    created_at: '2025-10-18T09:00:00Z',
-    ip_address: '192.168.1.10'
-  },
-  {
-    id: 10,
-    user_id: 1,
-    action: 'ASSIGN_ROLE',
-    entity_type: 'user_role',
-    entity_id: 4,
-    details: 'Assigned role DIRECTOR to user #4',
-    created_at: '2025-10-18T09:05:00Z',
-    ip_address: '192.168.1.10'
-  }
-];
-
-const ACTION_TYPES = [
-  { value: 'all', label: 'Todas las acciones' },
-  { value: 'UPLOAD_FILE', label: 'Carga de archivo' },
-  { value: 'APPROVE_STEP', label: 'Aprobación de paso' },
-  { value: 'OBSERVE_STEP', label: 'Observación de paso' },
-  { value: 'CREATE_PROCESS', label: 'Creación de proceso' },
-  { value: 'CLOSE_PROCESS', label: 'Cierre de proceso' },
-  { value: 'EXPORT_DATA', label: 'Exportación de datos' },
-  { value: 'CREATE_USER', label: 'Creación de usuario' },
-  { value: 'ASSIGN_ROLE', label: 'Asignación de rol' }
-];
-
 export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
-  const [logs] = useState<AuditLog[]>(extendedAuditLog);
-  const [filterUserId, setFilterUserId] = useState<string>('all');
-  const [filterAction, setFilterAction] = useState<string>('all');
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
-  const [filterDateTo, setFilterDateTo] = useState<string>('');
-  const [searchText, setSearchText] = useState<string>('');
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredLogs = useMemo(() => {
-    let filtered = [...logs];
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterAction, setFilterAction] = useState<string>("all");
+  const [filterEntityType, setFilterEntityType] = useState<string>("all");
+  const [filterStartDate, setFilterStartDate] = useState<string>("");
+  const [filterEndDate, setFilterEndDate] = useState<string>("");
 
-    // Filter by user
-    if (filterUserId !== 'all') {
-      filtered = filtered.filter(log => log.user_id === parseInt(filterUserId));
+  // Available filter options
+  const [actionTypes, setActionTypes] = useState<string[]>([]);
+  const [entityTypes, setEntityTypes] = useState<string[]>([]);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  // Detail modal
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const loadFilterOptions = async () => {
+    try {
+      const [actions, entities] = await Promise.all([
+        fetchActionTypes(),
+        fetchEntityTypes(),
+      ]);
+      setActionTypes(actions);
+      setEntityTypes(entities);
+    } catch (e) {
+      console.error("Error loading filter options", e);
     }
+  };
 
-    // Filter by action
-    if (filterAction !== 'all') {
-      filtered = filtered.filter(log => log.action === filterAction);
-    }
+  const loadLogs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Filter by date range
-    if (filterDateFrom) {
-      const fromDate = new Date(filterDateFrom);
-      filtered = filtered.filter(log => new Date(log.created_at) >= fromDate);
-    }
-    if (filterDateTo) {
-      const toDate = new Date(filterDateTo);
-      toDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(log => new Date(log.created_at) <= toDate);
-    }
+      const filter: AuditLogFilter = {
+        limit,
+        offset: (page - 1) * limit,
+      };
 
-    // Filter by search text (in details)
-    if (searchText) {
-      const search = searchText.toLowerCase();
-      filtered = filtered.filter(log =>
-        log.details?.toLowerCase().includes(search) ||
-        log.action.toLowerCase().includes(search) ||
-        log.entity_type.toLowerCase().includes(search)
-      );
-    }
+      if (filterAction !== "all") filter.action = filterAction;
+      if (filterEntityType !== "all") filter.entityType = filterEntityType;
+      if (filterStartDate) filter.startDate = filterStartDate;
+      if (filterEndDate) filter.endDate = filterEndDate;
 
-    // Sort by date descending (most recent first)
-    return filtered.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-  }, [logs, filterUserId, filterAction, filterDateFrom, filterDateTo, searchText]);
+      const response = await fetchAuditLogs(filter);
+
+      // Filter by search term locally (description)
+      let filteredData = response.data;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        filteredData = filteredData.filter(
+          (log) =>
+            log.description.toLowerCase().includes(term) ||
+            log.user?.fullName?.toLowerCase().includes(term) ||
+            log.entityType.toLowerCase().includes(term)
+        );
+      }
+
+      setLogs(filteredData);
+      setTotal(response.total);
+    } catch (e) {
+      console.error(e);
+      setError("Error al cargar la bitácora");
+      toast.error("No se pudo cargar la bitácora");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  useEffect(() => {
+    loadLogs();
+  }, [page, filterAction, filterEntityType, filterStartDate, filterEndDate]);
+
+  const handleSearch = () => {
+    setPage(1);
+    loadLogs();
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterAction("all");
+    setFilterEntityType("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setPage(1);
+  };
 
   const handleExportCSV = () => {
-    const filterInfo = [];
-    if (filterUserId !== 'all') filterInfo.push(`user_id=${filterUserId}`);
-    if (filterAction !== 'all') filterInfo.push(`action=${filterAction}`);
-    if (filterDateFrom) filterInfo.push(`date_from=${filterDateFrom}`);
-    if (filterDateTo) filterInfo.push(`date_to=${filterDateTo}`);
-    if (searchText) filterInfo.push(`search=${searchText}`);
-
-    toast.success(`Exportando ${filteredLogs.length} registros a CSV` +
-      (filterInfo.length > 0 ? ` (Filtros: ${filterInfo.join(', ')})` : ''));
+    toast.success(`Exportando ${logs.length} registros a CSV`);
+    // Aquí iría la lógica real de exportación
   };
 
-  const handleExportPDF = () => {
-    const filterInfo = [];
-    if (filterUserId !== 'all') filterInfo.push(`user_id=${filterUserId}`);
-    if (filterAction !== 'all') filterInfo.push(`action=${filterAction}`);
-    if (filterDateFrom) filterInfo.push(`date_from=${filterDateFrom}`);
-    if (filterDateTo) filterInfo.push(`date_to=${filterDateTo}`);
-    if (searchText) filterInfo.push(`search=${searchText}`);
+  const totalPages = Math.ceil(total / limit);
 
-    toast.success(`Generando PDF con ${filteredLogs.length} registros` +
-      (filterInfo.length > 0 ? ` (Filtros: ${filterInfo.join(', ')})` : ''));
-  };
-
-  const handleClearFilters = () => {
-    setFilterUserId('all');
-    setFilterAction('all');
-    setFilterDateFrom('');
-    setFilterDateTo('');
-    setSearchText('');
-  };
-
-  const getUserName = (userId: number) => {
-    return mockUsers.find(u => u.id === userId)?.fullName || 'Usuario desconocido';
-  };
-
-  const formatDateTime = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+    return date.toLocaleString("es-EC", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  const getActionBadgeVariant = (action: string) => {
-    if (action.includes('APPROVE')) return 'default';
-    if (action.includes('OBSERVE') || action.includes('REJECT')) return 'destructive';
-    if (action.includes('UPLOAD') || action.includes('CREATE')) return 'secondary';
-    if (action.includes('EXPORT')) return 'outline';
-    return 'secondary';
+  const parseDetails = (details: string | null) => {
+    if (!details) return null;
+    try {
+      return JSON.parse(details);
+    } catch {
+      return null;
+    }
   };
 
+  const hasActiveFilters =
+    filterAction !== "all" ||
+    filterEntityType !== "all" ||
+    filterStartDate !== "" ||
+    filterEndDate !== "" ||
+    searchTerm !== "";
+
   const activeFiltersCount = [
-    filterUserId !== 'all',
-    filterAction !== 'all',
-    filterDateFrom,
-    filterDateTo,
-    searchText
+    filterAction !== "all",
+    filterEntityType !== "all",
+    filterStartDate !== "",
+    filterEndDate !== "",
+    searchTerm !== "",
   ].filter(Boolean).length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2>Bitácora de Auditoría</h2>
+          <h2 className="text-xl font-semibold">Bitácora de Auditoría</h2>
           <p className="text-sm text-muted-foreground">
             Registro completo de eventos y acciones del sistema
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV}>
-            <FileText className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleExportCSV}>
+            <Download className="w-4 h-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar PDF
+          <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Actualizar
           </Button>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">Filtros de Búsqueda</CardTitle>
@@ -246,7 +229,7 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
               </CardDescription>
             </div>
             {activeFiltersCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleClearFilters}>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
                 <X className="w-4 h-4 mr-1" />
                 Limpiar ({activeFiltersCount})
               </Button>
@@ -256,66 +239,69 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
-              <Label htmlFor="filter-user">Usuario</Label>
-              <Select value={filterUserId} onValueChange={setFilterUserId}>
-                <SelectTrigger id="filter-user">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {mockUsers.map(user => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="search-text">Buscar en detalles</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="search-text"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="pl-9"
+                />
+              </div>
             </div>
-
             <div>
               <Label htmlFor="filter-action">Acción</Label>
-              <Select value={filterAction} onValueChange={setFilterAction}>
-                <SelectTrigger id="filter-action">
-                  <SelectValue />
+              <Select value={filterAction} onValueChange={(value: string) => { setFilterAction(value); setPage(1); }}>
+                <SelectTrigger id="filter-action" className={filterAction !== "all" ? "border-primary" : ""}>
+                  <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ACTION_TYPES.map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                  <SelectItem value="all">Todas las acciones</SelectItem>
+                  {actionTypes.map((action) => (
+                    <SelectItem key={action} value={action}>
+                      {actionLabels[action] || action}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
+            <div>
+              <Label htmlFor="filter-entity">Tipo de entidad</Label>
+              <Select value={filterEntityType} onValueChange={(value: string) => { setFilterEntityType(value); setPage(1); }}>
+                <SelectTrigger id="filter-entity" className={filterEntityType !== "all" ? "border-primary" : ""}>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  {entityTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {entityTypeLabels[type] || type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label htmlFor="filter-date-from">Fecha Desde</Label>
               <Input
                 id="filter-date-from"
                 type="date"
-                value={filterDateFrom}
-                onChange={(e) => setFilterDateFrom(e.target.value)}
+                value={filterStartDate}
+                onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }}
+                className={filterStartDate ? "border-primary" : ""}
               />
             </div>
-
             <div>
               <Label htmlFor="filter-date-to">Fecha Hasta</Label>
               <Input
                 id="filter-date-to"
                 type="date"
-                value={filterDateTo}
-                onChange={(e) => setFilterDateTo(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="search-text">Buscar en detalles</Label>
-              <Input
-                id="search-text"
-                type="text"
-                placeholder="Buscar..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
+                value={filterEndDate}
+                onChange={(e) => { setFilterEndDate(e.target.value); setPage(1); }}
+                className={filterEndDate ? "border-primary" : ""}
               />
             </div>
           </div>
@@ -329,27 +315,16 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
             <CardTitle className="text-sm">Total de Registros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{logs.length}</div>
+            <div className="text-2xl font-bold">{total}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Filtrados</CardTitle>
+            <CardTitle className="text-sm">Mostrando</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{filteredLogs.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Usuarios Activos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">
-              {new Set(logs.map(l => l.user_id)).size}
-            </div>
+            <div className="text-2xl font-bold">{logs.length}</div>
           </CardContent>
         </Card>
 
@@ -358,9 +333,16 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
             <CardTitle className="text-sm">Tipos de Acción</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">
-              {new Set(logs.map(l => l.action)).size}
-            </div>
+            <div className="text-2xl font-bold">{actionTypes.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Tipos de Entidad</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{entityTypes.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -370,62 +352,201 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
         <CardHeader>
           <CardTitle>Registros de Auditoría</CardTitle>
           <CardDescription>
-            {filteredLogs.length} registro(s) encontrado(s)
+            {total > 0 ? `${logs.length} de ${total} registro(s)` : "Sin registros"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredLogs.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Filter className="w-12 h-12 mx-auto mb-4" />
-              <p>No se encontraron registros con los filtros aplicados</p>
+              <p>{error}</p>
+              <Button variant="outline" onClick={loadLogs} className="mt-4">
+                Reintentar
+              </Button>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No se encontraron registros</p>
+              {hasActiveFilters && (
+                <Button variant="link" onClick={clearFilters} className="mt-2">
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Fecha/Hora</TableHead>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead>Acción</TableHead>
-                  <TableHead>Entidad</TableHead>
-                  <TableHead>Detalles</TableHead>
-                  <TableHead>IP Origen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLogs.map(log => (
-                  <TableRow key={log.id}>
-                    <TableCell>{log.id}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatDateTime(log.created_at)}
-                    </TableCell>
-                    <TableCell>{getUserName(log.user_id)}</TableCell>
-                    <TableCell>
-                      <Badge variant={getActionBadgeVariant(log.action)}>
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{log.entity_type}</div>
-                        <div className="text-muted-foreground">ID: {log.entity_id}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-md">
-                      <div className="text-sm truncate" title={log.details}>
-                        {log.details || '-'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {log.ip_address || '-'}
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">ID</TableHead>
+                    <TableHead className="w-[160px]">Fecha/Hora</TableHead>
+                    <TableHead className="w-[130px]">Usuario</TableHead>
+                    <TableHead className="w-[100px]">Acción</TableHead>
+                    <TableHead className="w-[110px]">Entidad</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead className="w-[60px]">Ver</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs">{log.id}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {formatDate(log.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        {log.user ? (
+                          <div className="flex items-center gap-1.5">
+                            <UserIcon className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm truncate max-w-[100px]">
+                              {log.user.fullName}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Sistema</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          style={{
+                            backgroundColor: actionColors[log.action] || "#6B7280",
+                            color: "#fff",
+                          }}
+                          className="text-xs"
+                        >
+                          {actionLabels[log.action] || log.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{entityTypeLabels[log.entityType] || log.entityType}</div>
+                          {log.entityId && (
+                            <div className="text-xs text-muted-foreground">ID: {log.entityId}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="text-sm truncate" title={log.description}>
+                          {log.description}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedLog(log)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <span className="text-sm text-muted-foreground">
+                    Página {page} de {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Siguiente
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de detalle */}
+      <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Detalle del Registro</DialogTitle>
+            <DialogDescription>
+              Información completa de la acción registrada
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">ID</div>
+                  <div className="font-mono">#{selectedLog.id}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Fecha y hora</div>
+                  <div>{formatDate(selectedLog.createdAt)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Acción</div>
+                  <Badge
+                    style={{
+                      backgroundColor: actionColors[selectedLog.action] || "#6B7280",
+                      color: "#fff",
+                    }}
+                  >
+                    {actionLabels[selectedLog.action] || selectedLog.action}
+                  </Badge>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Tipo de entidad</div>
+                  <div>{entityTypeLabels[selectedLog.entityType] || selectedLog.entityType}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">ID de entidad</div>
+                  <div className="font-mono">{selectedLog.entityId ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Usuario</div>
+                  <div>{selectedLog.user?.fullName || "Sistema"}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Descripción</div>
+                <div className="p-3 bg-muted rounded-lg text-sm">{selectedLog.description}</div>
+              </div>
+              {selectedLog.details && (
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Detalles adicionales</div>
+                  <pre className="p-3 bg-muted rounded-lg text-xs overflow-auto max-h-40">
+                    {JSON.stringify(parseDetails(selectedLog.details), null, 2)}
+                  </pre>
+                </div>
+              )}
+              {selectedLog.user?.email && (
+                <div>
+                  <div className="text-sm text-muted-foreground">Email del usuario</div>
+                  <div className="text-sm">{selectedLog.user.email}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

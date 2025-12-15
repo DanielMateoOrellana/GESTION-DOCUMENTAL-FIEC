@@ -51,8 +51,10 @@ export class StepFilesController {
     @Param('stepId', ParseIntPipe) stepId: number,
     @Param('fileId', ParseIntPipe) fileId: number,
     @Res() res: Response,
+    @Req() req: any,
   ) {
-    const file = await this.stepFilesService.getFile(stepId, fileId);
+    const userId = req.user?.id;
+    const file = await this.stepFilesService.getFile(stepId, fileId, userId);
 
     res.setHeader('Content-Type', file.mimeType);
     res.setHeader(
@@ -67,8 +69,10 @@ export class StepFilesController {
   async deleteFile(
     @Param('stepId', ParseIntPipe) stepId: number,
     @Param('fileId', ParseIntPipe) fileId: number,
+    @Req() req: any,
   ) {
-    await this.stepFilesService.deleteFile(stepId, fileId);
+    const userId = req.user?.id;
+    await this.stepFilesService.deleteFile(stepId, fileId, userId);
     return { success: true };
   }
 }

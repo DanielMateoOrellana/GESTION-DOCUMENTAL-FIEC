@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';
+import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class TagsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private auditLog: AuditLogService,
+    ) { }
 
     async findAll() {
         return this.prisma.tag.findMany({
@@ -68,7 +72,7 @@ export class TagsService {
             throw new ConflictException(`Ya existe una etiqueta con el nombre "${dto.name}"`);
         }
 
-        return this.prisma.tag.create({
+        const tag = await this.prisma.tag.create({
             data: {
                 name: dto.name,
                 color: dto.color,
@@ -83,27 +87,39 @@ export class TagsService {
                 },
             },
         });
+
+        // Registrar en bitácora
+        await this.auditLog.log({
+            action: AuditActions.CREATE,
+            entityType: EntityTypes.TAG,
+            entityId: tag.id,
+            description: `Etiqueta "${tag.name}" creada`,
+            details: { name: tag.name, color: tag.color },
+            userId,
+        });
+
+        return tag;
     }
 
-    async update(id: number, dto: UpdateTagDto) {
+    async update(id: number, dto: UpdateTagDto, userId?: number) {
         // Verificar que existe
-        await this.findOne(id);
+        const existing = await this.findOne(id);
 
         // Si se está cambiando el nombre, verificar que no exista otro con ese nombre
         if (dto.name) {
-            const existing = await this.prisma.tag.findFirst({
+            const duplicate = await this.prisma.tag.findFirst({
                 where: {
                     name: dto.name,
                     NOT: { id },
                 },
             });
 
-            if (existing) {
+            if (duplicate) {
                 throw new ConflictException(`Ya existe otra etiqueta con el nombre "${dto.name}"`);
             }
         }
 
-        return this.prisma.tag.update({
+        const tag = await this.prisma.tag.update({
             where: { id },
             data: dto,
             include: {
@@ -115,15 +131,39 @@ export class TagsService {
                 },
             },
         });
+
+        // Registrar en bitácora
+        await this.auditLog.log({
+            action: AuditActions.UPDATE,
+            entityType: EntityTypes.TAG,
+            entityId: tag.id,
+            description: `Etiqueta "${tag.name}" actualizada`,
+            details: { previousName: existing.name, newName: dto.name, newColor: dto.color },
+            userId,
+        });
+
+        return tag;
     }
 
-    async remove(id: number) {
-        await this.findOne(id);
-        return this.prisma.tag.delete({ where: { id } });
+    async remove(id: number, userId?: number) {
+        const tag = await this.findOne(id);
+
+        await this.prisma.tag.delete({ where: { id } });
+
+        // Registrar en bitácora
+        await this.auditLog.log({
+            action: AuditActions.DELETE,
+            entityType: EntityTypes.TAG,
+            entityId: id,
+            description: `Etiqueta "${tag.name}" eliminada`,
+            userId,
+        });
+
+        return tag;
     }
 
     // Asignar una etiqueta a un proceso
-    async assignToProcess(processInstanceId: number, tagId: number) {
+    async assignToProcess(processInstanceId: number, tagId: number, userId?: number) {
         // Verificar que el proceso existe
         const process = await this.prisma.processInstance.findUnique({
             where: { id: processInstanceId },
@@ -157,7 +197,7 @@ export class TagsService {
             return existing;
         }
 
-        return this.prisma.processInstanceTag.create({
+        const assignment = await this.prisma.processInstanceTag.create({
             data: {
                 processInstanceId,
                 tagId,
@@ -166,10 +206,22 @@ export class TagsService {
                 tag: true,
             },
         });
+
+        // Registrar en bitácora
+        await this.auditLog.log({
+            action: AuditActions.ASSIGN,
+            entityType: EntityTypes.TAG,
+            entityId: tagId,
+            description: `Etiqueta "${tag.name}" asignada al proceso #${processInstanceId}`,
+            details: { processInstanceId, tagId, tagName: tag.name },
+            userId,
+        });
+
+        return assignment;
     }
 
     // Remover una etiqueta de un proceso
-    async removeFromProcess(processInstanceId: number, tagId: number) {
+    async removeFromProcess(processInstanceId: number, tagId: number, userId?: number) {
         const existing = await this.prisma.processInstanceTag.findUnique({
             where: {
                 processInstanceId_tagId: {
@@ -177,13 +229,14 @@ export class TagsService {
                     tagId,
                 },
             },
+            include: { tag: true },
         });
 
         if (!existing) {
             throw new NotFoundException('Esta etiqueta no está asignada a este proceso');
         }
 
-        return this.prisma.processInstanceTag.delete({
+        await this.prisma.processInstanceTag.delete({
             where: {
                 processInstanceId_tagId: {
                     processInstanceId,
@@ -191,6 +244,18 @@ export class TagsService {
                 },
             },
         });
+
+        // Registrar en bitácora
+        await this.auditLog.log({
+            action: AuditActions.UNASSIGN,
+            entityType: EntityTypes.TAG,
+            entityId: tagId,
+            description: `Etiqueta "${existing.tag.name}" removida del proceso #${processInstanceId}`,
+            details: { processInstanceId, tagId, tagName: existing.tag.name },
+            userId,
+        });
+
+        return existing;
     }
 
     // Obtener etiquetas de un proceso específico

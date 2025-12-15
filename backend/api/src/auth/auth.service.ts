@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
+import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 
 export interface RegisterDto {
   email: string;
@@ -25,7 +26,8 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {}
+    private readonly auditLog: AuditLogService,
+  ) { }
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
@@ -45,6 +47,16 @@ export class AuthService {
         fullName: dto.fullName,
         role: dto.role ?? UserRole.LECTOR,
       },
+    });
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.CREATE,
+      entityType: EntityTypes.USER,
+      entityId: user.id,
+      description: `Usuario "${user.fullName}" registrado`,
+      details: { email: user.email, role: user.role },
+      userId: user.id, // El usuario mismo se registró
     });
 
     const { password, ...safeUser } = user;
@@ -80,6 +92,16 @@ export class AuthService {
     };
 
     const token = await this.jwtService.signAsync(payload);
+
+    // Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.LOGIN,
+      entityType: EntityTypes.SESSION,
+      entityId: user.id,
+      description: `Usuario "${user.fullName}" inició sesión`,
+      details: { email: user.email },
+      userId: user.id,
+    });
 
     return {
       access_token: token,

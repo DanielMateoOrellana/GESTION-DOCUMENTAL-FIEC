@@ -7,7 +7,7 @@ import {
     Body,
     Param,
     ParseIntPipe,
-    Request,
+    Req,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';
@@ -39,16 +39,20 @@ export class TagsController {
     assignToProcess(
         @Param('processId', ParseIntPipe) processId: number,
         @Param('tagId', ParseIntPipe) tagId: number,
+        @Req() req: any,
     ) {
-        return this.tagsService.assignToProcess(processId, tagId);
+        const userId = req.user?.id;
+        return this.tagsService.assignToProcess(processId, tagId, userId);
     }
 
     @Delete('assign/:processId/:tagId')
     removeFromProcess(
         @Param('processId', ParseIntPipe) processId: number,
         @Param('tagId', ParseIntPipe) tagId: number,
+        @Req() req: any,
     ) {
-        return this.tagsService.removeFromProcess(processId, tagId);
+        const userId = req.user?.id;
+        return this.tagsService.removeFromProcess(processId, tagId, userId);
     }
 
     // Rutas con :id AL FINAL
@@ -58,18 +62,20 @@ export class TagsController {
     }
 
     @Post()
-    create(@Body() dto: CreateTagDto, @Request() req: any) {
-        const userId = req.user?.userId;
+    create(@Body() dto: CreateTagDto, @Req() req: any) {
+        const userId = req.user?.id;
         return this.tagsService.create(dto, userId);
     }
 
     @Patch(':id')
-    update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTagDto) {
-        return this.tagsService.update(id, dto);
+    update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTagDto, @Req() req: any) {
+        const userId = req.user?.id;
+        return this.tagsService.update(id, dto, userId);
     }
 
     @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number) {
-        return this.tagsService.remove(id);
+    remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+        const userId = req.user?.id;
+        return this.tagsService.remove(id, userId);
     }
 }
