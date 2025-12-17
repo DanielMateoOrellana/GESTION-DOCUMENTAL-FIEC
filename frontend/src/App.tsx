@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ProcessListSimple } from './components/ProcessListSimple';
 import { ProcessDetailSimple } from './components/ProcessDetailSimple';
@@ -8,7 +8,7 @@ import { TemplateManagerSimple } from './components/TemplateManagerSimple';
 import { ProcessTypesList } from './components/ProcessTypesList';
 import { Login } from './components/Login';
 import { AppSidebar } from './components/AppSidebar';
-import logoEspol from 'figma:asset/2793a7bad49c6296879d99578377c2b3f531f7e5.png';
+import logoEspol from './assets/2793a7bad49c6296879d99578377c2b3f531f7e5.png'; // Ajusta si la ruta es diferente
 import { Toaster } from './components/ui/sonner';
 import { SidebarProvider } from './components/ui/sidebar';
 import { useAuth } from './auth/AuthContext';
@@ -35,6 +35,21 @@ export default function App() {
   const [viewData, setViewData] = useState<ViewData>({});
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
+  useEffect(() => {
+    if (user) {
+      window.history.pushState(null, '', window.location.href);
+
+      const handleBackButton = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
+
+      window.addEventListener('popstate', handleBackButton);
+
+      return () => {
+        window.removeEventListener('popstate', handleBackButton);
+      };
+    }
+  }, [user]);
 
   const handleViewChange = (view: string, data?: any) => {
     setCurrentView(view as ViewType);
@@ -67,7 +82,6 @@ export default function App() {
       </>
     );
   }
-
 
   const currentUser: User = user; // ya viene mapeado desde AuthContext
 

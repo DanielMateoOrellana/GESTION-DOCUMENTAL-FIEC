@@ -30,6 +30,8 @@ export function Login({ onSwitchToRegister }: LoginProps) {
     setSubmitting(true);
     try {
       await login(email, password);
+      window.history.pushState(null, '', window.location.href);
+
     } catch (err: any) {
       console.error('[Login] error', err);
       const msg =
