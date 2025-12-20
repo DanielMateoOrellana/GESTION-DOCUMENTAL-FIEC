@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { User } from '../types';
 import {
   mockProcessTemplates,
-  mockProcessInstances,
 } from '../data/mockData';
 
 import {
@@ -450,7 +449,8 @@ export function ProcessTypesList({
 
       {/* Modal Crear */}
       <Dialog open={showCreateModal} onOpenChange={handleCloseCreateModal}>
-        <DialogContent className="sm:max-w-md">
+        {/* Ajuste de ancho aquí */}
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Crear tipo de proceso</DialogTitle>
             <DialogDescription>
@@ -555,7 +555,8 @@ export function ProcessTypesList({
 
       {/* Modal de Edición */}
       <Dialog open={showEditModal} onOpenChange={handleCloseEditModal}>
-        <DialogContent className="sm:max-w-md">
+        {/* Ajuste de ancho aquí */}
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar tipo de proceso</DialogTitle>
             <DialogDescription>

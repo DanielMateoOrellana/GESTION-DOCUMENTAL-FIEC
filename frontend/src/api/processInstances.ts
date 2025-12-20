@@ -55,17 +55,6 @@ export type ProcessInstance = {
     updatedAt: string;
   };
   steps?: StepInstance[];
-  tags?: {
-    id: number;
-    processInstanceId: number;
-    tagId: number;
-    tag: {
-      id: number;
-      name: string;
-      color: string;
-    };
-    assignedAt: string;
-  }[];
 };
 
 export type CreateProcessInstanceInput = {
@@ -76,7 +65,6 @@ export type CreateProcessInstanceInput = {
   year?: number;
   month?: number;
   dueAt?: string;
-  // 🚫 fuera: responsibleUserId
 };
 
 export async function createProcessInstance(
@@ -88,5 +76,56 @@ export async function createProcessInstance(
 
 export async function fetchProcessInstances(): Promise<ProcessInstance[]> {
   const { data } = await api.get<ProcessInstance[]>('/process-instances');
+  return data;
+}
+
+/**
+ * Descarga el expediente completo como archivo ZIP
+ */
+export async function downloadProcessZip(processId: number): Promise<Blob> {
+  const response = await api.get(`/process-instances/${processId}/zip`, {
+    responseType: 'blob',
+  });
+  return response.data;
+}
+
+/**
+ * Resultado de la importación de proceso desde ZIP
+ */
+export type ImportProcessResult = {
+  process: ProcessInstance;
+  stats: {
+    filesImported: number;
+    filesSkipped: number;
+    stepsCreated: number;
+  };
+};
+
+/**
+ * Importa un proceso desde un archivo ZIP
+ */
+export async function importProcessZip(
+  file: File,
+  processTypeId: number,
+  templateId: number,
+  title?: string,
+  year?: number,
+): Promise<ImportProcessResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('processTypeId', processTypeId.toString());
+  formData.append('templateId', templateId.toString());
+  if (title) formData.append('title', title);
+  if (year) formData.append('year', year.toString());
+
+  const { data } = await api.post<ImportProcessResult>(
+    '/process-instances/import-zip',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
+  );
   return data;
 }

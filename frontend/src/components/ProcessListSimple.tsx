@@ -20,9 +20,10 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, Loader2, FolderOpen } from "lucide-react";
+import { Search, Plus, Loader2, FolderOpen, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
+import { ImportProcessModal } from "./ImportProcessModal";
 import { Progress } from "./ui/progress";
 
 import {
@@ -47,6 +48,7 @@ export function ProcessListSimple({
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [isCreateProcessModalOpen, setIsCreateProcessModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [instances, setInstances] = useState<ApiProcessInstance[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
@@ -170,6 +172,10 @@ export function ProcessListSimple({
               Exportar seleccionados ({selectedItems.length})
             </Button>
           )}
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <FileUp className="w-4 h-4 mr-2" />
+            Importar Expediente
+          </Button>
           <Button onClick={() => setIsCreateProcessModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo proceso
@@ -364,6 +370,16 @@ export function ProcessListSimple({
         onProcessCreated={(instance) => {
           // Actualizar lista cuando se crea un nuevo proceso
           setInstances((prev) => [...prev, instance]);
+        }}
+      />
+
+      {/* Modal para importar expediente desde ZIP */}
+      <ImportProcessModal
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={(result) => {
+          // Agregar el proceso importado a la lista
+          setInstances((prev) => [result.process, ...prev]);
         }}
       />
     </div>

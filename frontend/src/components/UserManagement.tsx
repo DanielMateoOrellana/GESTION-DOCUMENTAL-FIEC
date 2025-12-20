@@ -332,7 +332,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* Modal Crear Usuario */}
       <Dialog open={isCreatingUser} onOpenChange={(open: boolean) => { if (!open) resetForm(); setIsCreatingUser(open); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Usuario</DialogTitle>
             <DialogDescription>

@@ -4,6 +4,7 @@ import type { User } from "../types";
 
 import {
   fetchProcessInstances,
+  downloadProcessZip,
   type ProcessInstance as ApiProcessInstance,
 } from "../api/processInstances";
 
@@ -22,7 +23,8 @@ import {
   User as UserIcon,
   Download,
   X,
-  TagIcon,
+  Archive,
+  Loader2,
 } from "lucide-react";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
@@ -76,6 +78,7 @@ export function ProcessDetailSimple({
   const [steps, setSteps] = useState<ApiStep[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -212,6 +215,31 @@ export function ProcessDetailSimple({
     toast.success("Proceso marcado como completado (mock)");
   };
 
+  const handleExportZip = async () => {
+    if (!process) return;
+    try {
+      setExporting(true);
+      const blob = await downloadProcessZip(process.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fileName = (process.title || `Expediente_${process.id}`)
+        .replace(/[<>:"/\\|?*]/g, '_')
+        .replace(/\s+/g, '_');
+      a.download = `${fileName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Expediente descargado exitosamente");
+    } catch (e) {
+      console.error("[ProcessDetailSimple] Error exportando expediente", e);
+      toast.error("No se pudo descargar el expediente");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -245,13 +273,6 @@ export function ProcessDetailSimple({
 
   const createdAtRaw = process.createdAt;
   const state = getSimplifiedState(process.estado);
-
-  // Etiquetas del proceso desde el backend
-  const tags = process.tags?.map(t => ({
-    id: t.tag.id,
-    name: t.tag.name,
-    color: t.tag.color,
-  })) || [];
 
   const completedSteps = steps.filter((s) => s.estado === "COMPLETADO").length;
   const progressPercent =
@@ -291,10 +312,20 @@ export function ProcessDetailSimple({
             {process.processType?.name || "Tipo desconocido"} - {process.year}
           </p>
         </div>
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportZip} disabled={exporting}>
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Archive className="w-4 h-4 mr-2" />
+            )}
+            {exporting ? "Exportando..." : "Exportar Expediente"}
+          </Button>
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+        </div>
       </div>
 
       {/* Process Info Card */}
@@ -330,30 +361,6 @@ export function ProcessDetailSimple({
                 {process.year} / {process.month}
               </div>
             </div>
-          </div>
-
-          {/* Etiquetas - siempre visible */}
-          <Separator />
-          <div>
-            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
-              <TagIcon className="w-4 h-4" />
-              Etiquetas
-            </div>
-            {tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    style={{ backgroundColor: tag.color, color: "#fff" }}>
-                    {tag.name}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground">
-                Este proceso no tiene etiquetas asignadas
-              </span>
-            )}
           </div>
 
           {steps.length > 0 && (
