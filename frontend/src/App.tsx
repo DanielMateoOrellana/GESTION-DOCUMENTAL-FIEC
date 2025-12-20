@@ -3,7 +3,6 @@ import { Dashboard } from './components/Dashboard';
 import { ProcessListSimple } from './components/ProcessListSimple';
 import { ProcessDetailSimple } from './components/ProcessDetailSimple';
 import { AdminPanel } from './components/AdminPanel';
-import { CompliancePanelSimple } from './components/CompliancePanelSimple';
 import { TemplateManagerSimple } from './components/TemplateManagerSimple';
 import { ProcessTypesList } from './components/ProcessTypesList';
 import { Login } from './components/Login';
@@ -20,7 +19,6 @@ type ViewType =
   | 'processes'
   | 'process-detail'
   | 'admin'
-  | 'compliance'
   | 'templates'
   | 'process-types';
 
@@ -122,13 +120,6 @@ export default function App() {
         );
       case 'admin':
         return <AdminPanel currentUser={currentUser} />;
-      case 'compliance':
-        return (
-          <CompliancePanelSimple
-            currentUser={currentUser}
-            onViewChange={handleViewChange}
-          />
-        );
       default:
         return (
           <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
@@ -156,7 +147,7 @@ export default function App() {
                   className="h-6 w-auto object-contain"
                 />
                 <h2 className="text-muted-foreground">
-                  Sistema de Gestión Documental - FIEC
+                  Repositorio Institucional de Evidencias - FIEC
                 </h2>
               </div>
               <div className="flex items-center gap-3">

@@ -20,10 +20,9 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, X, Tag as TagIcon, Loader2, Settings } from "lucide-react";
+import { Search, Plus, Loader2, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
-import { TagManagementModal } from "./TagManagementModal";
 import { Progress } from "./ui/progress";
 
 import {
@@ -32,30 +31,11 @@ import {
   type EstadoProceso,
 } from "../api/processInstances";
 import { fetchProcessTypes, type ProcessType } from "../api/processTypes";
-import {
-  fetchTags,
-  createTag,
-  assignTagToProcess,
-  removeTagFromProcess,
-  type Tag,
-} from "../api/tags";
 
 interface ProcessListSimpleProps {
   currentUser: User;
   onViewChange: (view: string, data?: any) => void;
 }
-
-// Colores predeterminados para nuevas etiquetas
-const TAG_COLORS = [
-  "#EF4444", // red
-  "#F59E0B", // amber
-  "#10B981", // emerald
-  "#3B82F6", // blue
-  "#8B5CF6", // violet
-  "#EC4899", // pink
-  "#06B6D4", // cyan
-  "#84CC16", // lime
-];
 
 export function ProcessListSimple({
   currentUser,
@@ -65,17 +45,11 @@ export function ProcessListSimple({
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterState, setFilterState] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
-  const [filterTag, setFilterTag] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
-  const [editingTags, setEditingTags] = useState<number | null>(null);
   const [isCreateProcessModalOpen, setIsCreateProcessModalOpen] = useState(false);
-  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
-  const [savingTag, setSavingTag] = useState(false);
 
   const [instances, setInstances] = useState<ApiProcessInstance[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,14 +66,12 @@ export function ProcessListSimple({
     try {
       setLoading(true);
       setError(null);
-      const [data, types, tags] = await Promise.all([
+      const [data, types] = await Promise.all([
         fetchProcessInstances(),
         fetchProcessTypes(),
-        fetchTags(),
       ]);
       setInstances(data);
       setProcessTypes(types);
-      setAllTags(tags);
     } catch (e) {
       console.error(e);
       setError("No se pudieron cargar los procesos");
@@ -112,11 +84,6 @@ export function ProcessListSimple({
   useEffect(() => {
     loadData();
   }, []);
-
-  // Obtener etiquetas de un proceso desde los datos incluidos
-  const getProcessTagIds = (process: ApiProcessInstance): number[] => {
-    return process.tags?.map((t) => t.tagId) || [];
-  };
 
   const filteredProcesses = instances.filter((process) => {
     const matchesSearch = (process.title ?? "")
@@ -140,11 +107,7 @@ export function ProcessListSimple({
         process.processTypeId !== undefined &&
         process.processTypeId.toString() === filterType);
 
-    const matchesTag =
-      filterTag === "all" ||
-      getProcessTagIds(process).includes(Number(filterTag));
-
-    return matchesSearch && matchesYear && matchesState && matchesType && matchesTag;
+    return matchesSearch && matchesYear && matchesState && matchesType;
   });
 
   const handleSelectAll = () => {
@@ -171,120 +134,6 @@ export function ProcessListSimple({
     toast.success(`Exportando ${selectedItems.length} proceso(s)`);
   };
 
-  const toggleTag = async (processId: number, tagId: number) => {
-    const process = instances.find((p) => p.id === processId);
-    if (!process) return;
-
-    const currentTagIds = getProcessTagIds(process);
-    const isAssigned = currentTagIds.includes(tagId);
-
-    try {
-      if (isAssigned) {
-        await removeTagFromProcess(processId, tagId);
-        // Actualizar el estado local
-        setInstances((prev) =>
-          prev.map((p) =>
-            p.id === processId
-              ? { ...p, tags: p.tags?.filter((t) => t.tagId !== tagId) }
-              : p
-          )
-        );
-        toast.success("Etiqueta removida");
-      } else {
-        const assignment = await assignTagToProcess(processId, tagId);
-        // Actualizar el estado local
-        setInstances((prev) =>
-          prev.map((p) =>
-            p.id === processId
-              ? {
-                ...p,
-                tags: [
-                  ...(p.tags || []),
-                  {
-                    id: assignment.id,
-                    processInstanceId: processId,
-                    tagId: tagId,
-                    tag: allTags.find((t) => t.id === tagId)!,
-                    assignedAt: new Date().toISOString(),
-                  },
-                ],
-              }
-              : p
-          )
-        );
-        toast.success("Etiqueta asignada");
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e.response?.data?.message || "Error al modificar etiqueta");
-    }
-  };
-
-  const handleCreateTag = async (processId: number) => {
-    if (!newTagName.trim()) {
-      toast.error("Escriba un nombre para la etiqueta");
-      return;
-    }
-
-    // Verificar si ya existe
-    const existingTag = allTags.find(
-      (t) => t.name.toLowerCase() === newTagName.trim().toLowerCase()
-    );
-
-    if (existingTag) {
-      // Ya existe, solo asignarla
-      await toggleTag(processId, existingTag.id);
-      setNewTagName("");
-      return;
-    }
-
-    // Crear nueva etiqueta
-    try {
-      setSavingTag(true);
-      const randomColor = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
-
-      const newTag = await createTag({
-        name: newTagName.trim(),
-        color: randomColor,
-      });
-
-      // Agregar a la lista de todas las etiquetas
-      setAllTags((prev) => [...prev, newTag]);
-
-      // Asignar al proceso
-      const assignment = await assignTagToProcess(processId, newTag.id);
-
-      // Actualizar el proceso con la nueva etiqueta
-      setInstances((prev) =>
-        prev.map((p) =>
-          p.id === processId
-            ? {
-              ...p,
-              tags: [
-                ...(p.tags || []),
-                {
-                  id: assignment.id,
-                  processInstanceId: processId,
-                  tagId: newTag.id,
-                  tag: newTag,
-                  assignedAt: new Date().toISOString(),
-                },
-              ],
-            }
-            : p
-        )
-      );
-
-      setNewTagName("");
-      toast.success(`Etiqueta "${newTag.name}" creada y asignada`);
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e.response?.data?.message || "Error al crear etiqueta");
-    } finally {
-      setSavingTag(false);
-    }
-  };
-
   const getSimplifiedState = (estado: EstadoProceso) => {
     if (estado === "COMPLETADO") {
       return { label: "Completado", color: "bg-green-100 text-green-800" };
@@ -297,13 +146,12 @@ export function ProcessListSimple({
     return processTypes.find((t) => t.id === id)?.name ?? `Tipo #${id}`;
   };
 
-  const hasActiveFilters = filterYear !== "all" || filterState !== "all" || filterType !== "all" || filterTag !== "all";
+  const hasActiveFilters = filterYear !== "all" || filterState !== "all" || filterType !== "all";
 
   const clearFilters = () => {
     setFilterYear("all");
     setFilterState("all");
     setFilterType("all");
-    setFilterTag("all");
     setSearchTerm("");
   };
 
@@ -322,10 +170,6 @@ export function ProcessListSimple({
               Exportar seleccionados ({selectedItems.length})
             </Button>
           )}
-          <Button variant="outline" onClick={() => setIsTagManagerOpen(true)}>
-            <Settings className="w-4 h-4 mr-2" />
-            Gestor de Etiquetas
-          </Button>
           <Button onClick={() => setIsCreateProcessModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo proceso
@@ -346,7 +190,7 @@ export function ProcessListSimple({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -392,29 +236,6 @@ export function ProcessListSimple({
                 <SelectItem value="completed">Completado</SelectItem>
               </SelectContent>
             </Select>
-            {/* Filtro por Etiquetas */}
-            <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className={filterTag !== "all" ? "border-primary" : ""}>
-                <div className="flex items-center gap-2">
-                  <TagIcon className="w-4 h-4" />
-                  <SelectValue placeholder="Etiqueta" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las etiquetas</SelectItem>
-                {allTags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      {tag.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           {loading && (
             <p className="mt-3 text-sm text-muted-foreground flex items-center gap-2">
@@ -458,13 +279,11 @@ export function ProcessListSimple({
                 <TableHead>Responsable</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Progreso</TableHead>
-                <TableHead>Etiquetas</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProcesses.map((process) => {
                 const state = getSimplifiedState(process.estado);
-                const processTagIds = getProcessTagIds(process);
 
                 const responsibleLabel =
                   process.responsibleUser?.fullName ||
@@ -518,104 +337,6 @@ export function ProcessListSimple({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {editingTags === process.id ? (
-                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
-                            {allTags.map((tag) => (
-                              <Badge
-                                key={tag.id}
-                                style={{
-                                  backgroundColor: processTagIds.includes(tag.id)
-                                    ? tag.color
-                                    : "#e5e7eb",
-                                  color: processTagIds.includes(tag.id)
-                                    ? "#fff"
-                                    : "#6b7280",
-                                  cursor: "pointer",
-                                }}
-                                className="transition-all hover:opacity-80"
-                                onClick={() => toggleTag(process.id, tag.id)}
-                              >
-                                {tag.name}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex gap-1">
-                            <Input
-                              placeholder="Nueva etiqueta..."
-                              value={newTagName}
-                              onChange={(e) => setNewTagName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleCreateTag(process.id);
-                                }
-                              }}
-                              className="h-7 text-xs"
-                              disabled={savingTag}
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCreateTag(process.id)}
-                              disabled={savingTag}
-                            >
-                              {savingTag ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Plus className="w-3 h-3" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingTags(null);
-                                setNewTagName("");
-                              }}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="flex flex-wrap gap-1 cursor-pointer min-h-[24px]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingTags(process.id);
-                          }}
-                        >
-                          {processTagIds.length > 0 ? (
-                            processTagIds.slice(0, 3).map((tagId) => {
-                              const tag = allTags.find((t) => t.id === tagId) ||
-                                process.tags?.find(t => t.tagId === tagId)?.tag;
-                              return tag ? (
-                                <Badge
-                                  key={tag.id}
-                                  style={{
-                                    backgroundColor: tag.color,
-                                    color: "#fff",
-                                  }}
-                                >
-                                  {tag.name}
-                                </Badge>
-                              ) : null;
-                            })
-                          ) : (
-                            <span className="text-xs text-muted-foreground hover:text-foreground">
-                              + Agregar
-                            </span>
-                          )}
-                          {processTagIds.length > 3 && (
-                            <Badge variant="secondary">
-                              +{processTagIds.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -623,7 +344,7 @@ export function ProcessListSimple({
           </Table>
           {filteredProcesses.length === 0 && !loading && (
             <div className="text-center py-12 text-muted-foreground">
-              <TagIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">No se encontraron procesos</p>
               {hasActiveFilters && (
                 <Button variant="link" onClick={clearFilters} className="mt-2">
@@ -644,13 +365,6 @@ export function ProcessListSimple({
           // Actualizar lista cuando se crea un nuevo proceso
           setInstances((prev) => [...prev, instance]);
         }}
-      />
-
-      {/* Modal para gestionar etiquetas */}
-      <TagManagementModal
-        open={isTagManagerOpen}
-        onOpenChange={setIsTagManagerOpen}
-        onTagsUpdated={loadData}
       />
     </div>
   );

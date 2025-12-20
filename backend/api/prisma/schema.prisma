@@ -135,9 +135,6 @@ model ProcessInstance {
 
   // Pasos concretos del proceso
   steps StepInstance[]
-
-  // Etiquetas del proceso
-  tags ProcessInstanceTag[]
 }
 
 model StepInstance {
@@ -204,42 +201,9 @@ model User {
   createdProcessTypes     ProcessType[]      @relation("UserCreatedProcessTypes")
   createdTemplates        ProcessTemplate[]  @relation("UserCreatedTemplates")
   createdProcessInstances ProcessInstance[]  @relation("UserCreatedProcessInstances")
-  createdTags             Tag[]              @relation("UserCreatedTags")
   
   // Bitácora
   auditLogs AuditLog[] @relation("UserAuditLogs")
-}
-
-// Modelo de Etiquetas
-model Tag {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  color String // Color en formato hexadecimal, ej: "#EF4444"
-
-  // Quién creó la etiqueta
-  createdById Int?
-  createdBy   User? @relation("UserCreatedTags", fields: [createdById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relación muchos a muchos con ProcessInstance
-  processInstances ProcessInstanceTag[]
-}
-
-// Tabla intermedia para relación muchos a muchos
-model ProcessInstanceTag {
-  id Int @id @default(autoincrement())
-
-  processInstanceId Int
-  processInstance   ProcessInstance @relation(fields: [processInstanceId], references: [id], onDelete: Cascade)
-
-  tagId Int
-  tag   Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  assignedAt DateTime @default(now())
-
-  @@unique([processInstanceId, tagId])
 }
 
 // Bitácora - Registro de todas las acciones del sistema
@@ -249,7 +213,7 @@ model AuditLog {
   // Tipo de acción: CREATE, UPDATE, DELETE, LOGIN, LOGOUT, UPLOAD, DOWNLOAD, ASSIGN, UNASSIGN
   action String
 
-  // Tipo de entidad afectada: USER, PROCESS_TYPE, PROCESS_TEMPLATE, PROCESS_INSTANCE, STEP, TAG, FILE, etc.
+  // Tipo de entidad afectada: USER, PROCESS_TYPE, PROCESS_TEMPLATE, PROCESS_INSTANCE, STEP, FILE, etc.
   entityType String
 
   // ID de la entidad afectada (opcional, puede ser null para acciones como login)

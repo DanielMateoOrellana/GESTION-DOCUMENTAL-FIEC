@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Progress } from './ui/progress';
 import {
   Search,
   FileText,
@@ -36,6 +37,9 @@ interface TaskItem {
   overdue: boolean;
   year?: number;
   processTypeId?: number;
+  progress: number; // 0-100
+  completedSteps: number;
+  totalSteps: number;
 }
 
 export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
@@ -91,6 +95,12 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
       // Only add Process items
       const due = p.dueAt ? new Date(p.dueAt) : null;
 
+      // Calculate progress from steps
+      const steps = p.steps || [];
+      const totalSteps = steps.length;
+      const completedSteps = steps.filter(s => s.estado === 'COMPLETADO').length;
+      const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
       newTasks.push({
         id: `p-${p.id}`,
         type: 'process',
@@ -104,6 +114,9 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
         overdue: p.estado === 'PENDIENTE' && due ? due < now : false,
         year: p.year ?? undefined,
         processTypeId: p.processTypeId ?? undefined,
+        progress,
+        completedSteps,
+        totalSteps,
       });
     });
 
@@ -276,6 +289,7 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
                   <TableHead className="font-medium">Fecha Límite</TableHead>
                   <TableHead className="font-medium">Responsable</TableHead>
                   <TableHead className="font-medium text-center">Estado</TableHead>
+                  <TableHead className="font-medium">Progreso</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -314,6 +328,19 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
                     </TableCell>
                     <TableCell className="text-center">
                       {statusBadge(task.status, task.overdue)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <Progress value={task.progress} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8 text-right">
+                            {task.progress}%
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {task.completedSteps} de {task.totalSteps} completados
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button size="icon" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">

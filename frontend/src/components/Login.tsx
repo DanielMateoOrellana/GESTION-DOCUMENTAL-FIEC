@@ -55,7 +55,7 @@ export function Login({ onSwitchToRegister }: LoginProps) {
             />
           </div>
           <div>
-            <CardTitle>Sistema de Gestión Documental</CardTitle>
+            <CardTitle>Repositorio Institucional de Evidencias</CardTitle>
             <CardDescription>
               FIEC - Facultad de Ingeniería Eléctrica y Computación
             </CardDescription>

@@ -73,7 +73,7 @@ export function AdminPanel({ currentUser }: AdminPanelProps) {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Sistema de Gestión Documental FIEC - ESPOL
+                  Repositorio Institucional de Evidencias - FIEC ESPOL
                 </p>
               </div>
             </CardContent>

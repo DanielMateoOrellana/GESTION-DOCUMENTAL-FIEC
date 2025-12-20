@@ -9,7 +9,6 @@ import { ProcessInstancesModule } from './process-instances/process-instances.mo
 import { StepFilesModule } from './step-files/step-files.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { TagsModule } from './tags/tags.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -26,7 +25,6 @@ import { RolesGuard } from './auth/roles.guard';
     StepFilesModule,
     AuthModule,
     UsersModule,
-    TagsModule,
   ],
   controllers: [],
   providers: [

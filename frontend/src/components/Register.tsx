@@ -74,7 +74,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
           <div>
             <CardTitle>Crear cuenta</CardTitle>
             <CardDescription>
-              Registre un usuario para acceder al Sistema de Gestión Documental
+              Registre un usuario para acceder al Repositorio Institucional de Evidencias
             </CardDescription>
           </div>
         </CardHeader>

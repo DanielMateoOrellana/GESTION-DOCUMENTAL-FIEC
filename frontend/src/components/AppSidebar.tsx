@@ -1,15 +1,10 @@
 import {
   LayoutDashboard,
   FolderKanban,
-  Bell,
   Settings,
   LogOut,
   FileText,
-  BarChart3,
-  TrendingUp,
-  TagIcon,
   List,
-  History,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,7 +43,6 @@ export function AppSidebar({
     { id: "processes", label: "Procesos", icon: FolderKanban },
     { id: "templates", label: "Plantillas", icon: FileText },
     { id: "process-types", label: "Tipos de proceso", icon: List },
-    { id: "compliance", label: "Panel de cumplimiento", icon: TrendingUp },
     { id: "admin", label: "Administración", icon: Settings },
   ];
 
@@ -64,7 +58,7 @@ export function AppSidebar({
           <div>
             <h2 className="text-sidebar-foreground">FIEC</h2>
             <p className="text-xs text-sidebar-foreground/70">
-              Gestión Documental
+              Repositorio de Evidencias
             </p>
           </div>
         </div>
