@@ -9,3 +9,4 @@ estructura_proyecto.txt
 backend/api/.env
 backend/api/dist/
 **/dist/
+frontend/.env.local

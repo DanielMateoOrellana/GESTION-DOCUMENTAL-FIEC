@@ -16,6 +16,7 @@ import { memoryStorage } from 'multer';
 import { ProcessInstancesService } from './process-instances.service';
 import { CreateProcessInstanceDto } from './dto/create-process-instance.dto';
 import { ImportProcessDto } from './dto/import-process.dto';
+import { BulkExportDto } from './dto/bulk-export.dto';
 import type { Response } from 'express';
 
 @Controller('process-instances')
@@ -73,6 +74,25 @@ export class ProcessInstancesController {
     return this.service.importZip(file, dto, userId);
   }
 
+  /**
+   * Exporta múltiples expedientes en un único archivo ZIP
+   */
+  @Post('bulk-export-zip')
+  async bulkExportZip(@Body() dto: BulkExportDto, @Res() res: Response) {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const fileName = `Expedientes_${timestamp}`;
+
+    // Configurar headers para descarga de ZIP
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(fileName)}.zip"`,
+    );
+
+    // Generar y enviar el ZIP con múltiples procesos
+    await this.service.generateBulkZip(dto.ids, res);
+  }
+
   @Get()
   findAll() {
     return this.service.findAll();
@@ -116,4 +136,3 @@ export class ProcessInstancesController {
     await this.service.generateZip(id, res);
   }
 }
-

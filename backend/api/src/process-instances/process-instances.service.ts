@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { R2Service } from '../r2/r2.service';
 import { CreateProcessInstanceDto } from './dto/create-process-instance.dto';
 import { EstadoProceso, EstadoPaso } from '@prisma/client';
 import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
@@ -8,6 +9,7 @@ import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-l
 export class ProcessInstancesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly r2: R2Service,
     private readonly auditLog: AuditLogService,
   ) { }
 
@@ -124,15 +126,20 @@ export class ProcessInstancesService {
   }
 
   /**
-   * Genera un archivo ZIP con todos los archivos del expediente.
-   * Estructura: NombreProceso/NombrePaso/NombreArchivo
+   * Sanitiza un nombre para usarlo en rutas de archivo
    */
-  async generateZip(id: number, res: any): Promise<void> {
-    // Importar archiver dinámicamente para evitar problemas de ESM
-    const archiver = await import('archiver');
+  private sanitizeName(name: string): string {
+    return name
+      .replace(/[<>:"/\\|?*]/g, '_')  // Caracteres inválidos en Windows
+      .replace(/\s+/g, '_')            // Espacios por guiones bajos
+      .substring(0, 100);               // Limitar longitud
+  }
 
-    // Obtener el proceso con sus pasos y archivos
-    const instance = await this.prisma.processInstance.findUnique({
+  /**
+   * Tipo de proceso con archivos incluidos para ZIP
+   */
+  private async getProcessWithFiles(id: number) {
+    return this.prisma.processInstance.findUnique({
       where: { id },
       include: {
         processType: true,
@@ -146,22 +153,74 @@ export class ProcessInstancesService {
         },
       },
     });
+  }
+
+  /**
+   * Añade los archivos de un proceso al archiver con estructura de carpetas
+   * Ahora obtiene los archivos desde R2 usando storageKey
+   * @param archive - Instancia de archiver
+   * @param instance - Proceso con pasos y archivos
+   * @param rootPrefix - Prefijo opcional para la ruta (usado en bulk export)
+   * @returns Promesa con número de archivos añadidos
+   */
+  private async addProcessFilesToArchive(
+    archive: any,
+    instance: NonNullable<Awaited<ReturnType<typeof this.getProcessWithFiles>>>,
+    rootPrefix: string = '',
+  ): Promise<number> {
+    const processName = this.sanitizeName(
+      instance.title || instance.template?.name || `Proceso_${instance.id}`
+    );
+
+    const basePath = rootPrefix ? `${rootPrefix}/${processName}` : processName;
+    let filesAdded = 0;
+
+    for (const step of instance.steps) {
+      const stepName = this.sanitizeName(
+        step.templateStep?.name || step.title || `Paso_${step.id}`
+      );
+
+      for (const file of step.files) {
+        try {
+          const fileName = this.sanitizeName(file.originalName);
+          const filePath = `${basePath}/${stepName}/${fileName}`;
+
+          // Obtener el buffer del archivo desde R2
+          const buffer = await this.r2.getBuffer(file.storageKey);
+
+          // Añadir el buffer del archivo al ZIP
+          archive.append(buffer, { name: filePath });
+          filesAdded++;
+        } catch (error) {
+          console.error(`Error fetching file ${file.storageKey} from R2:`, error);
+          // Continuar con el siguiente archivo
+        }
+      }
+    }
+
+    // Si no hay archivos, añadir un archivo README
+    if (filesAdded === 0) {
+      const readmeContent = `Expediente: ${instance.title || `Proceso #${instance.id}`}\n\nEste expediente no contiene archivos adjuntos.`;
+      archive.append(readmeContent, { name: `${basePath}/README.txt` });
+    }
+
+    return filesAdded;
+  }
+
+  /**
+   * Genera un archivo ZIP con todos los archivos del expediente.
+   * Estructura: NombreProceso/NombrePaso/NombreArchivo
+   */
+  async generateZip(id: number, res: any): Promise<void> {
+    // Importar archiver dinámicamente
+    const archiver = await import('archiver');
+
+    // Obtener el proceso con sus pasos y archivos
+    const instance = await this.getProcessWithFiles(id);
 
     if (!instance) {
       throw new NotFoundException(`Proceso #${id} no encontrado`);
     }
-
-    // Sanitizar nombre para evitar errores de ruta
-    const sanitizeName = (name: string): string => {
-      return name
-        .replace(/[<>:"/\\|?*]/g, '_')  // Caracteres inválidos en Windows
-        .replace(/\s+/g, '_')            // Espacios por guiones bajos
-        .substring(0, 100);               // Limitar longitud
-    };
-
-    const processName = sanitizeName(
-      instance.title || instance.template?.name || `Proceso_${instance.id}`
-    );
 
     // Crear el archivo ZIP
     const archive = archiver.default('zip', {
@@ -176,33 +235,79 @@ export class ProcessInstancesService {
     // Pipe el archivo al response
     archive.pipe(res);
 
-    // Variable para contar archivos añadidos
-    let filesAdded = 0;
+    // Añadir archivos del proceso
+    await this.addProcessFilesToArchive(archive, instance);
 
-    // Agregar archivos al ZIP
-    for (const step of instance.steps) {
-      const stepName = sanitizeName(
-        step.templateStep?.name || step.title || `Paso_${step.id}`
-      );
+    // Finalizar el archivo
+    await archive.finalize();
+  }
 
-      for (const file of step.files) {
-        const fileName = sanitizeName(file.originalName);
-        const filePath = `${processName}/${stepName}/${fileName}`;
-
-        // Añadir el buffer del archivo al ZIP
-        archive.append(Buffer.from(file.content), { name: filePath });
-        filesAdded++;
-      }
+  /**
+   * Genera un archivo ZIP con múltiples expedientes.
+   * Estructura: Proceso1/Paso/Archivo, Proceso2/Paso/Archivo, ...
+   */
+  async generateBulkZip(ids: number[], res: any): Promise<{ processedCount: number; totalFiles: number }> {
+    if (!ids || ids.length === 0) {
+      throw new NotFoundException('No se proporcionaron IDs de procesos');
     }
 
-    // Si no hay archivos, añadir un archivo README
-    if (filesAdded === 0) {
-      const readmeContent = `Expediente: ${instance.title || `Proceso #${instance.id}`}\n\nEste expediente no contiene archivos adjuntos.`;
-      archive.append(readmeContent, { name: `${processName}/README.txt` });
+    // Importar archiver dinámicamente
+    const archiver = await import('archiver');
+
+    // Obtener todos los procesos solicitados
+    const instances = await this.prisma.processInstance.findMany({
+      where: { id: { in: ids } },
+      include: {
+        processType: true,
+        template: true,
+        steps: {
+          include: {
+            files: true,
+            templateStep: true,
+          },
+          orderBy: { id: 'asc' },
+        },
+      },
+    });
+
+    if (instances.length === 0) {
+      throw new NotFoundException('No se encontraron procesos con los IDs proporcionados');
+    }
+
+    // Crear el archivo ZIP
+    const archive = archiver.default('zip', {
+      zlib: { level: 9 }, // Máxima compresión
+    });
+
+    // Manejar errores del archivo
+    archive.on('error', (err: Error) => {
+      throw err;
+    });
+
+    // Pipe el archivo al response
+    archive.pipe(res);
+
+    let totalFiles = 0;
+
+    // Añadir archivos de cada proceso
+    for (const instance of instances) {
+      const filesAdded = await this.addProcessFilesToArchive(archive, instance);
+      totalFiles += filesAdded;
+    }
+
+    // Si no hay ningún archivo en ningún proceso, añadir README general
+    if (totalFiles === 0) {
+      const readmeContent = `Exportación masiva de expedientes\n\nSe exportaron ${instances.length} proceso(s), pero ninguno contiene archivos adjuntos.`;
+      archive.append(readmeContent, { name: 'README.txt' });
     }
 
     // Finalizar el archivo
     await archive.finalize();
+
+    return {
+      processedCount: instances.length,
+      totalFiles,
+    };
   }
 
   /**
@@ -359,31 +464,45 @@ export class ProcessInstancesService {
           continue;
         }
 
-        // Guardar el archivo en el paso encontrado
+        // Guardar el archivo en el paso encontrado - subir a R2 primero
         const fileContent = entry.getData();
+        const originalFileName = fileName || entry.name;
+        const storageKey = this.r2.generateKey(originalFileName, `steps/${foundStep.id}/`);
+
+        // Subir a R2
+        await this.r2.upload(storageKey, fileContent, this.getMimeType(originalFileName));
+
+        // Guardar registro en BD
         await this.prisma.stepFile.create({
           data: {
             stepId: foundStep.id,
-            originalName: fileName || entry.name,
-            mimeType: this.getMimeType(fileName || entry.name),
+            originalName: originalFileName,
+            mimeType: this.getMimeType(originalFileName),
             sizeBytes: fileContent.length,
             version: 1,
-            content: Uint8Array.from(fileContent),
+            storageKey, // Key en R2
             uploadedById: userId,
           },
         });
         filesImported++;
       } else {
-        // Guardar el archivo en el paso coincidente
+        // Guardar el archivo en el paso coincidente - subir a R2 primero
         const fileContent = entry.getData();
+        const originalFileName = fileName || entry.name;
+        const storageKey = this.r2.generateKey(originalFileName, `steps/${matchedStep.id}/`);
+
+        // Subir a R2
+        await this.r2.upload(storageKey, fileContent, this.getMimeType(originalFileName));
+
+        // Guardar registro en BD
         await this.prisma.stepFile.create({
           data: {
             stepId: matchedStep.id,
-            originalName: fileName || entry.name,
-            mimeType: this.getMimeType(fileName || entry.name),
+            originalName: originalFileName,
+            mimeType: this.getMimeType(originalFileName),
             sizeBytes: fileContent.length,
             version: 1,
-            content: Uint8Array.from(fileContent),
+            storageKey, // Key en R2
             uploadedById: userId,
           },
         });

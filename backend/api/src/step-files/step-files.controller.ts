@@ -24,7 +24,7 @@ export class StepFilesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
     }),
   )
   async uploadFile(
@@ -54,15 +54,21 @@ export class StepFilesController {
     @Req() req: any,
   ) {
     const userId = req.user?.id;
-    const file = await this.stepFilesService.getFile(stepId, fileId, userId);
 
-    res.setHeader('Content-Type', file.mimeType);
+    // Obtener stream desde R2
+    const { stream, fileName, mimeType, sizeBytes } =
+      await this.stepFilesService.getFileStream(stepId, fileId, userId);
+
+    // Configurar headers
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', sizeBytes);
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(file.originalName)}"`,
+      `attachment; filename="${encodeURIComponent(fileName)}"`,
     );
 
-    res.send(Buffer.from(file.content));
+    // Pipe el stream directamente a la respuesta
+    stream.pipe(res);
   }
 
   @Delete(':stepId/files/:fileId')

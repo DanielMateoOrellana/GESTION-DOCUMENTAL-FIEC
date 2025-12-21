@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
+import { R2Module } from './r2/r2.module';
 import { ProcessCategoriesModule } from './process-categories/process-categories.module';
 import { ProcessTypesModule } from './process-types/process-types.module';
 import { ProcessTemplatesModule } from './process-templates/process-templates.module';
@@ -17,6 +18,7 @@ import { RolesGuard } from './auth/roles.guard';
 @Module({
   imports: [
     PrismaModule,
+    R2Module, // Global module for R2 file storage
     AuditLogModule, // Global module for audit logging
     ProcessCategoriesModule,
     ProcessTypesModule,

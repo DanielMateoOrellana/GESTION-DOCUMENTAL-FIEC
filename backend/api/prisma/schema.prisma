@@ -171,7 +171,10 @@ model StepFile {
   mimeType     String
   sizeBytes    Int
   version      Int
-  content      Bytes // bytea en Postgres
+  
+  // Almacenamiento en R2
+  storageKey   String    // Key única en Cloudflare R2 (obligatorio ahora)
+  content      Bytes?    // Opcional - solo para compatibilidad/migración
 
   uploadedById Int?
   uploadedBy   User? @relation("UserStepFiles", fields: [uploadedById], references: [id])

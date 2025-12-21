@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, Loader2, FolderOpen, FileUp } from "lucide-react";
+import { Search, Plus, Loader2, FolderOpen, FileUp, Download } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
 import { ImportProcessModal } from "./ImportProcessModal";
@@ -28,6 +28,7 @@ import { Progress } from "./ui/progress";
 
 import {
   fetchProcessInstances,
+  exportBulkProcesses,
   type ProcessInstance as ApiProcessInstance,
   type EstadoProceso,
 } from "../api/processInstances";
@@ -53,6 +54,7 @@ export function ProcessListSimple({
   const [instances, setInstances] = useState<ApiProcessInstance[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Años dinámicos según lo que viene del backend
@@ -128,12 +130,36 @@ export function ProcessListSimple({
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (selectedItems.length === 0) {
       toast.error("Seleccione al menos un proceso");
       return;
     }
-    toast.success(`Exportando ${selectedItems.length} proceso(s)`);
+
+    try {
+      setExporting(true);
+      const blob = await exportBulkProcesses(selectedItems);
+
+      // Crear URL temporal y descargar
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      a.download = `Expedientes_${timestamp}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`${selectedItems.length} expediente(s) exportados exitosamente`);
+      setSelectedItems([]); // Limpiar selección después de exportar
+    } catch (e: any) {
+      console.error("Error exportando expedientes", e);
+      const message = e.response?.data?.message || "Error al exportar los expedientes";
+      toast.error(message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getSimplifiedState = (estado: EstadoProceso) => {
@@ -168,8 +194,13 @@ export function ProcessListSimple({
         </div>
         <div className="flex gap-2">
           {selectedItems.length > 0 && (
-            <Button variant="outline" onClick={handleExport}>
-              Exportar seleccionados ({selectedItems.length})
+            <Button variant="outline" onClick={handleExport} disabled={exporting}>
+              {exporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {exporting ? "Exportando..." : `Exportar (${selectedItems.length})`}
             </Button>
           )}
           <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>

@@ -129,3 +129,17 @@ export async function importProcessZip(
   );
   return data;
 }
+
+/**
+ * Exporta múltiples expedientes en un único archivo ZIP
+ */
+export async function exportBulkProcesses(ids: number[]): Promise<Blob> {
+  const response = await api.post(
+    '/process-instances/bulk-export-zip',
+    { ids },
+    {
+      responseType: 'blob',
+    },
+  );
+  return response.data;
+}

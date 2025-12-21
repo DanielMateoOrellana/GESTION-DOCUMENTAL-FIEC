@@ -1,17 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { R2Service } from '../r2/r2.service';
 import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 import type { Express } from 'express';
+import type { Readable } from 'stream';
 
 @Injectable()
 export class StepFilesService {
   constructor(
     private prisma: PrismaService,
+    private r2: R2Service,
     private auditLog: AuditLogService,
   ) { }
 
   async upload(stepId: number, file: Express.Multer.File, userId?: number) {
-    // última versión + 1
+    // Última versión + 1
     const last = await this.prisma.stepFile.findFirst({
       where: { stepId },
       orderBy: { version: 'desc' },
@@ -19,6 +22,13 @@ export class StepFilesService {
 
     const version = (last?.version ?? 0) + 1;
 
+    // Generar key única para R2
+    const storageKey = this.r2.generateKey(file.originalname, `steps/${stepId}/`);
+
+    // Subir archivo a R2
+    await this.r2.upload(storageKey, file.buffer, file.mimetype);
+
+    // Guardar registro en BD (sin el contenido del archivo)
     const created = await this.prisma.stepFile.create({
       data: {
         stepId,
@@ -26,13 +36,11 @@ export class StepFilesService {
         mimeType: file.mimetype,
         sizeBytes: file.size,
         version,
-        content: new Uint8Array(file.buffer),
+        storageKey, // Key en R2
+        // content ya no se guarda (solo metadatos)
         uploadedById: userId,
       },
     });
-
-    // no devolvemos el blob
-    const { content, ...rest } = created;
 
     // --- LOGICA DE AUTO-COMPLETADO ---
     // 1. Marcar el paso actual como COMPLETADO
@@ -68,6 +76,7 @@ export class StepFilesService {
         mimeType: file.mimetype,
         sizeBytes: file.size,
         version,
+        storageKey,
         processInstanceId: step.processInstanceId,
       },
       userId,
@@ -110,7 +119,7 @@ export class StepFilesService {
     }
     // ---------------------------------
 
-    return rest;
+    return created;
   }
 
   async listByStep(stepId: number) {
@@ -124,6 +133,7 @@ export class StepFilesService {
         mimeType: true,
         sizeBytes: true,
         version: true,
+        storageKey: true,
         uploadedAt: true,
         uploadedById: true,
         uploadedBy: {
@@ -137,7 +147,15 @@ export class StepFilesService {
     });
   }
 
-  async getFile(stepId: number, fileId: number, userId?: number) {
+  /**
+   * Obtiene el stream de un archivo desde R2
+   */
+  async getFileStream(stepId: number, fileId: number, userId?: number): Promise<{
+    stream: Readable;
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+  }> {
     const file = await this.prisma.stepFile.findFirst({
       where: { id: fileId, stepId },
     });
@@ -146,15 +164,45 @@ export class StepFilesService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
+    // Obtener stream desde R2
+    const stream = await this.r2.getStream(file.storageKey);
+
     // Registrar descarga en bitácora
     await this.auditLog.log({
       action: AuditActions.DOWNLOAD,
       entityType: EntityTypes.FILE,
       entityId: fileId,
       description: `Archivo "${file.originalName}" descargado`,
-      details: { stepId, fileName: file.originalName },
+      details: { stepId, fileName: file.originalName, storageKey: file.storageKey },
       userId,
     });
+
+    return {
+      stream,
+      fileName: file.originalName,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+    };
+  }
+
+  /**
+   * Obtiene el buffer de un archivo desde R2 (para exportación ZIP)
+   */
+  async getFileBuffer(storageKey: string): Promise<Buffer> {
+    return this.r2.getBuffer(storageKey);
+  }
+
+  /**
+   * Obtiene metadatos de un archivo (sin contenido)
+   */
+  async getFile(stepId: number, fileId: number) {
+    const file = await this.prisma.stepFile.findFirst({
+      where: { id: fileId, stepId },
+    });
+
+    if (!file) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
 
     return file;
   }
@@ -168,6 +216,15 @@ export class StepFilesService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
+    // Primero eliminar de R2
+    try {
+      await this.r2.delete(file.storageKey);
+    } catch (error) {
+      console.error(`Error deleting file from R2: ${file.storageKey}`, error);
+      // Continuar con la eliminación del registro aunque falle R2
+    }
+
+    // Luego eliminar registro de BD
     await this.prisma.stepFile.delete({
       where: { id: fileId },
     });
@@ -178,7 +235,7 @@ export class StepFilesService {
       entityType: EntityTypes.FILE,
       entityId: fileId,
       description: `Archivo "${file.originalName}" eliminado del paso #${stepId}`,
-      details: { stepId, fileName: file.originalName },
+      details: { stepId, fileName: file.originalName, storageKey: file.storageKey },
       userId,
     });
 
