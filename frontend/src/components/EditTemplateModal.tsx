@@ -8,22 +8,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
 import {
     updateProcessTemplate,
     fetchProcessTemplate,
+    deleteProcessTemplate,
     type UpdateProcessTemplateInput,
     type CreateTemplateStepInput,
 } from '../api/processTemplates';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface EditTemplateModalProps {
     open: boolean;
     onClose: () => void;
     templateId: number | null;
     onTemplateUpdated: () => void;
+    onTemplateDeleted?: () => void;
 }
 
 interface TemplateStep {
@@ -35,7 +47,7 @@ interface TemplateStep {
     ord: number;
 }
 
-export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated }: EditTemplateModalProps) {
+export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated, onTemplateDeleted }: EditTemplateModalProps) {
     const [currentStep, setCurrentStep] = useState(1);
     const [templateName, setTemplateName] = useState('');
     const [templateDescription, setTemplateDescription] = useState('');
@@ -43,6 +55,10 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
     const [isActive, setIsActive] = useState(true);
     const [steps, setSteps] = useState<TemplateStep[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // Delete state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
     const [loadingTypes, setLoadingTypes] = useState(false);
@@ -222,6 +238,25 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
         } catch (error) {
             console.error(error);
             toast.error('Error al actualizar la plantilla');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!templateId) return;
+
+        try {
+            setDeleting(true);
+            await deleteProcessTemplate(templateId);
+            toast.success(`Plantilla "${templateName}" eliminada`);
+            onTemplateDeleted?.();
+            onClose();
+        } catch (e: any) {
+            console.error('Error eliminando plantilla:', e);
+            const message = e.response?.data?.message || 'Error al eliminar la plantilla';
+            toast.error(message);
+        } finally {
+            setDeleting(false);
+            setDeleteDialogOpen(false);
         }
     };
 
@@ -479,10 +514,18 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
 
                         {/* Botones de acción */}
                         <div className="flex justify-between pt-4 border-t">
-                            <Button variant="outline" onClick={onClose}>
-                                Cancelar
+                            <Button
+                                variant="destructive"
+                                onClick={() => setDeleteDialogOpen(true)}
+                                disabled={deleting}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Eliminar
                             </Button>
                             <div className="flex gap-2">
+                                <Button variant="outline" onClick={onClose}>
+                                    Cancelar
+                                </Button>
                                 {currentStep === 2 && (
                                     <Button variant="outline" onClick={handleBack}>
                                         Atrás
@@ -498,6 +541,43 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
                     </div>
                 )}
             </DialogContent>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-destructive" />
+                            Confirmar eliminación
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que deseas eliminar la plantilla{' '}
+                            <strong>"{templateName}"</strong>?
+                            <br />
+                            <br />
+                            Esta acción no se puede deshacer. Si la plantilla tiene procesos
+                            asociados, primero deberás eliminarlos.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Eliminando...
+                                </>
+                            ) : (
+                                'Eliminar'
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Dialog>
     );
 }

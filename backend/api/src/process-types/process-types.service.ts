@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessTypeDto } from './dto/create-process-type.dto';
 import { UpdateProcessTypeDto } from './dto/update-process-type.dto';
@@ -77,6 +77,17 @@ export class ProcessTypesService {
   async remove(id: number, userId?: number) {
     const processType = await this.findOne(id);
 
+    // Verificar si tiene plantillas asociadas
+    const templatesCount = await this.prisma.processTemplate.count({
+      where: { processTypeId: id },
+    });
+
+    if (templatesCount > 0) {
+      throw new ConflictException(
+        `No se puede eliminar el tipo de proceso "${processType.name}" porque tiene ${templatesCount} plantilla(s) asociada(s). Elimine primero las plantillas.`
+      );
+    }
+
     await this.prisma.processType.delete({
       where: { id },
     });
@@ -93,3 +104,4 @@ export class ProcessTypesService {
     return processType;
   }
 }
+

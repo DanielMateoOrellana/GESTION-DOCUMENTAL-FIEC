@@ -12,6 +12,7 @@ import {
   fetchProcessTypes,
   createProcessType,
   updateProcessType,
+  deleteProcessType,
   ProcessType as ApiProcessType,
 } from '../api/processTypes';
 
@@ -48,7 +49,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { Plus, Edit, AlertTriangle, FolderTree, CheckCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import { Plus, Edit, Trash2, AlertTriangle, FolderTree, CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
 import { FormField } from './ui/form-field';
@@ -97,6 +108,11 @@ export function ProcessTypesList({
   const [createErrors, setCreateErrors] = useState<FormErrors>({});
   const [editErrors, setEditErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [typeToDelete, setTypeToDelete] = useState<ApiProcessType | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Cargar categorías y tipos desde el backend
   const loadData = async () => {
@@ -321,6 +337,40 @@ export function ProcessTypesList({
     setShowEditModal(false);
   };
 
+  const openDeleteDialog = (type: ApiProcessType) => {
+    setTypeToDelete(type);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!typeToDelete) return;
+
+    try {
+      setDeleting(true);
+      await deleteProcessType(typeToDelete.id);
+
+      // Actualizar estado local
+      setProcessTypes((prev: ApiProcessType[]) =>
+        prev.filter((t) => t.id !== typeToDelete.id)
+      );
+
+      toast.success(`Tipo de proceso "${typeToDelete.name}" eliminado`);
+      setDeleteDialogOpen(false);
+      setTypeToDelete(null);
+
+      // Cerrar modal de edición si está abierto
+      if (showEditModal) {
+        handleCloseEditModal();
+      }
+    } catch (e: any) {
+      console.error('Error eliminando tipo de proceso:', e);
+      const message = e.response?.data?.message || 'Error al eliminar el tipo de proceso';
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -434,6 +484,7 @@ export function ProcessTypesList({
                           variant="ghost"
                           size="sm"
                           onClick={() => openEditModal(type)}
+                          title="Editar"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -648,23 +699,75 @@ export function ProcessTypesList({
               </label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseEditModal} disabled={submitting}>
-              Cancelar
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (editingType) {
+                  setTypeToDelete(editingType);
+                  setDeleteDialogOpen(true);
+                }
+              }}
+              disabled={submitting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar
             </Button>
-            <Button onClick={handleUpdateProcessType} disabled={submitting}>
-              {submitting ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Guardando...
-                </>
-              ) : (
-                'Guardar Cambios'
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCloseEditModal} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateProcessType} disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar Cambios'
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Confirmar eliminación
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el tipo de proceso{' '}
+              <strong>"{typeToDelete?.name}"</strong>?
+              <br />
+              <br />
+              Esta acción no se puede deshacer. Si el tipo tiene plantillas asociadas,
+              primero deberás eliminarlas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

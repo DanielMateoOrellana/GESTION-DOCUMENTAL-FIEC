@@ -5,6 +5,7 @@ import type { User } from "../types";
 import {
   fetchProcessInstances,
   downloadProcessZip,
+  deleteProcessInstance,
   type ProcessInstance as ApiProcessInstance,
 } from "../api/processInstances";
 
@@ -25,6 +26,8 @@ import {
   X,
   Archive,
   Loader2,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
@@ -42,6 +45,16 @@ import {
   deleteStepFile,
   type StepFileSummary,
 } from "../api/stepFiles";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 interface ProcessDetailSimpleProps {
   processId: number;
@@ -79,6 +92,10 @@ export function ProcessDetailSimple({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -240,6 +257,24 @@ export function ProcessDetailSimple({
     }
   };
 
+  const handleDelete = async () => {
+    if (!process) return;
+
+    try {
+      setDeleting(true);
+      await deleteProcessInstance(process.id);
+      toast.success(`Proceso "${process.title || `#${process.id}`}" eliminado`);
+      onBack(); // Volver a la lista
+    } catch (e: any) {
+      console.error("[ProcessDetailSimple] Error eliminando proceso", e);
+      const message = e.response?.data?.message || "Error al eliminar el proceso";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -313,6 +348,14 @@ export function ProcessDetailSimple({
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteDialogOpen(true)}
+            disabled={deleting}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Eliminar
+          </Button>
           <Button variant="outline" onClick={handleExportZip} disabled={exporting}>
             {exporting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -508,6 +551,43 @@ export function ProcessDetailSimple({
           onUploaded={load}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Confirmar eliminación
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el proceso{' '}
+              <strong>"{process?.title || `#${process?.id}`}"</strong>?
+              <br />
+              <br />
+              Esta acción eliminará permanentemente todos los archivos asociados
+              y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

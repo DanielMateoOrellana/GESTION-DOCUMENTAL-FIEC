@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, Loader2, FolderOpen, FileUp, Download } from "lucide-react";
+import { Search, Plus, Loader2, FolderOpen, FileUp, Download, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
 import { ImportProcessModal } from "./ImportProcessModal";
@@ -29,10 +29,21 @@ import { Progress } from "./ui/progress";
 import {
   fetchProcessInstances,
   exportBulkProcesses,
+  deleteProcessInstance,
   type ProcessInstance as ApiProcessInstance,
   type EstadoProceso,
 } from "../api/processInstances";
 import { fetchProcessTypes, type ProcessType } from "../api/processTypes";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 interface ProcessListSimpleProps {
   currentUser: User;
@@ -56,6 +67,11 @@ export function ProcessListSimple({
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [processToDelete, setProcessToDelete] = useState<ApiProcessInstance | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Años dinámicos según lo que viene del backend
   const years = Array.from(
@@ -181,6 +197,35 @@ export function ProcessListSimple({
     setFilterState("all");
     setFilterType("all");
     setSearchTerm("");
+  };
+
+  const openDeleteDialog = (process: ApiProcessInstance, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    setProcessToDelete(process);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!processToDelete) return;
+
+    try {
+      setDeleting(true);
+      await deleteProcessInstance(processToDelete.id);
+
+      // Actualizar estado local
+      setInstances((prev) => prev.filter((p) => p.id !== processToDelete.id));
+      setSelectedItems((prev) => prev.filter((id) => id !== processToDelete.id));
+
+      toast.success(`Proceso "${processToDelete.title || `#${processToDelete.id}`}" eliminado`);
+      setDeleteDialogOpen(false);
+      setProcessToDelete(null);
+    } catch (e: any) {
+      console.error('Error eliminando proceso:', e);
+      const message = e.response?.data?.message || 'Error al eliminar el proceso';
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -413,6 +458,43 @@ export function ProcessListSimple({
           setInstances((prev) => [result.process, ...prev]);
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Confirmar eliminación
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el proceso{' '}
+              <strong>"{processToDelete?.title || `#${processToDelete?.id}`}"</strong>?
+              <br />
+              <br />
+              Esta acción eliminará permanentemente todos los archivos asociados
+              y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

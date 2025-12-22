@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -135,4 +136,14 @@ export class ProcessInstancesController {
     // Generar y enviar el ZIP
     await this.service.generateZip(id, res);
   }
+
+  /**
+   * Elimina una instancia de proceso y todos sus archivos
+   */
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const userId = req.user?.id;
+    return this.service.remove(id, userId);
+  }
 }
+

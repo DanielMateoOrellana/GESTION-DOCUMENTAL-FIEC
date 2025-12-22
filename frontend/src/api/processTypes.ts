@@ -39,3 +39,7 @@ export async function updateProcessType(
   const { data } = await api.patch<ProcessType>(`/process-types/${id}`, input);
   return data;
 }
+
+export async function deleteProcessType(id: number): Promise<void> {
+  await api.delete(`/process-types/${id}`);
+}

@@ -363,6 +363,7 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
           setEditingTemplateId(null);
         }}
         onTemplateUpdated={loadData}
+        onTemplateDeleted={loadData}
       />
     </div>
   );

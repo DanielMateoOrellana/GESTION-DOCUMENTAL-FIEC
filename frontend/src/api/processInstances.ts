@@ -143,3 +143,10 @@ export async function exportBulkProcesses(ids: number[]): Promise<Blob> {
   );
   return response.data;
 }
+
+/**
+ * Elimina una instancia de proceso y todos sus archivos
+ */
+export async function deleteProcessInstance(id: number): Promise<void> {
+  await api.delete(`/process-instances/${id}`);
+}

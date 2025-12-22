@@ -126,6 +126,76 @@ export class ProcessInstancesService {
   }
 
   /**
+   * Elimina una instancia de proceso y todos sus archivos de R2
+   */
+  async remove(id: number, userId?: number) {
+    // Obtener el proceso con todos sus archivos
+    const instance = await this.prisma.processInstance.findUnique({
+      where: { id },
+      include: {
+        steps: {
+          include: {
+            files: true,
+          },
+        },
+      },
+    });
+
+    if (!instance) {
+      throw new NotFoundException(`Proceso #${id} no encontrado`);
+    }
+
+    // 1. Eliminar todos los archivos de R2
+    let filesDeleted = 0;
+    for (const step of instance.steps) {
+      for (const file of step.files) {
+        try {
+          await this.r2.delete(file.storageKey);
+          filesDeleted++;
+        } catch (error) {
+          console.error(`Error eliminando archivo ${file.storageKey} de R2:`, error);
+          // Continuar con el siguiente archivo
+        }
+      }
+    }
+
+    // 2. Eliminar registros de archivos, pasos y proceso en transacción
+    await this.prisma.$transaction(async (tx) => {
+      // Eliminar archivos de BD
+      for (const step of instance.steps) {
+        await tx.stepFile.deleteMany({
+          where: { stepId: step.id },
+        });
+      }
+
+      // Eliminar pasos
+      await tx.stepInstance.deleteMany({
+        where: { processInstanceId: id },
+      });
+
+      // Eliminar proceso
+      await tx.processInstance.delete({
+        where: { id },
+      });
+    });
+
+    // 3. Registrar en bitácora
+    await this.auditLog.log({
+      action: AuditActions.DELETE,
+      entityType: EntityTypes.PROCESS_INSTANCE,
+      entityId: id,
+      description: `Proceso "${instance.title || `#${id}`}" eliminado`,
+      details: {
+        stepsDeleted: instance.steps.length,
+        filesDeleted,
+      },
+      userId,
+    });
+
+    return instance;
+  }
+
+  /**
    * Sanitiza un nombre para usarlo en rutas de archivo
    */
   private sanitizeName(name: string): string {
