@@ -106,8 +106,8 @@ export function AppSidebar({
               <p className="text-sm text-sidebar-foreground truncate">
                 {currentUser.fullName}
               </p>
-              <p className="text-xs text-sidebar-foreground/70 truncate">
-                Secretaría
+              <p className="text-xs text-sidebar-foreground/70 truncate font-medium">
+                {currentUser.role}
               </p>
             </div>
           </div>
