@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessCategoryDto } from './dto/create-process-category.dto';
 import { UpdateProcessCategoryDto } from './dto/update-process-category.dto';
@@ -38,6 +38,11 @@ export class ProcessCategoriesService {
   findAll() {
     return this.prisma.processCategory.findMany({
       orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: { processTypes: true }
+        }
+      }
     });
   }
 
@@ -73,6 +78,17 @@ export class ProcessCategoriesService {
   async remove(id: number, userId?: number) {
     const category = await this.findOne(id);
 
+    // Verificar si tiene ProcessTypes asociados
+    const typesCount = await this.prisma.processType.count({
+      where: { categoryId: id },
+    });
+
+    if (typesCount > 0) {
+      throw new ConflictException(
+        `No se puede eliminar la categoría "${category.name}" porque tiene ${typesCount} tipo(s) de proceso asociado(s). Elimine o reasigne los tipos primero.`
+      );
+    }
+
     await this.prisma.processCategory.delete({ where: { id } });
 
     // Registrar en bitácora
@@ -87,3 +103,4 @@ export class ProcessCategoriesService {
     return category;
   }
 }
+

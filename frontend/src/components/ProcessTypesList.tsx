@@ -67,6 +67,7 @@ import { EmptyState } from './ui/empty-state';
 import { LoadingSpinner, TableSkeleton } from './ui/loading-spinner';
 import { cn } from './ui/utils';
 import { Badge } from './ui/badge';
+import { CategoryManager } from './CategoryManager';
 
 interface ProcessTypesListProps {
   currentUser: User;
@@ -113,6 +114,9 @@ export function ProcessTypesList({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [typeToDelete, setTypeToDelete] = useState<ApiProcessType | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Category manager state
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
 
   // Cargar categorías y tipos desde el backend
   const loadData = async () => {
@@ -384,6 +388,13 @@ export function ProcessTypesList({
           {selectedItems.length > 0 && (
             <Button variant="outline" onClick={handleExport}>
               Exportar seleccionados ({selectedItems.length})
+            </Button>
+          )}
+          {/* Botón Gestionar Categorías - visible para ADMIN y GESTOR */}
+          {(currentUser.role === 'ADMINISTRADOR' || currentUser.role === 'GESTOR') && (
+            <Button variant="outline" onClick={() => setShowCategoryManager(true)}>
+              <FolderTree className="w-4 h-4 mr-2" />
+              Gestionar Categorías
             </Button>
           )}
           <Button onClick={() => setShowCreateModal(true)}>
@@ -768,6 +779,13 @@ export function ProcessTypesList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Category Manager Modal */}
+      <CategoryManager
+        open={showCategoryManager}
+        onClose={() => setShowCategoryManager(false)}
+        onCategoriesChanged={loadData}
+      />
     </div>
   );
 }

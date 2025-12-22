@@ -457,7 +457,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* Modal Editar Usuario */}
       <Dialog open={isEditingUser} onOpenChange={(open: boolean) => { if (!open) resetForm(); setIsEditingUser(open); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar Usuario</DialogTitle>
             <DialogDescription>
