@@ -33,6 +33,16 @@ export async function updateUser(id: number, input: UpdateUserInput): Promise<Us
     return data;
 }
 
+/**
+ * Cambia el rol de un usuario.
+ * Solo disponible para administradores.
+ */
+export async function changeUserRole(id: number, role: UserRoleEnum): Promise<User> {
+    const { data } = await api.patch<User>(`/users/${id}/role`, { role });
+    return data;
+}
+
 export async function deleteUser(id: number): Promise<void> {
     await api.delete(`/users/${id}`);
 }
+

@@ -248,14 +248,19 @@ export function ProcessListSimple({
               {exporting ? "Exportando..." : `Exportar (${selectedItems.length})`}
             </Button>
           )}
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <FileUp className="w-4 h-4 mr-2" />
-            Importar Expediente
-          </Button>
-          <Button onClick={() => setIsCreateProcessModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo proceso
-          </Button>
+          {/* Solo mostrar botones de creación si NO es LECTOR */}
+          {currentUser.role !== 'LECTOR' && (
+            <>
+              <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                <FileUp className="w-4 h-4 mr-2" />
+                Importar Expediente
+              </Button>
+              <Button onClick={() => setIsCreateProcessModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo proceso
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

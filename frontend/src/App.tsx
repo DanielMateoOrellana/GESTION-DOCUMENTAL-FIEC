@@ -119,6 +119,14 @@ export default function App() {
           />
         );
       case 'admin':
+        // Protección de ruta: solo ADMINISTRADOR puede acceder
+        if (currentUser.role !== 'ADMINISTRADOR') {
+          // Redirigir a dashboard si no es admin
+          handleViewChange('dashboard');
+          return (
+            <Dashboard currentUser={currentUser} onViewChange={handleViewChange} />
+          );
+        }
         return <AdminPanel currentUser={currentUser} />;
       default:
         return (

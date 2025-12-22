@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { User, UserRoleEnum } from '../types';
-import { fetchUsers, createUser, updateUser, CreateUserInput } from '../api/users';
+import { fetchUsers, createUser, updateUser, changeUserRole, CreateUserInput } from '../api/users';
 import { UserPlus, Edit2, Users, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { FormField } from './ui/form-field';
@@ -202,6 +202,19 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
   };
 
+  const handleRoleChange = async (userId: number, newRole: UserRoleEnum) => {
+    try {
+      await changeUserRole(userId, newRole);
+      toast.success('Rol actualizado exitosamente');
+      // Actualizar estado local
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (err: any) {
+      console.error(err);
+      const message = err.response?.data?.message || 'Error al cambiar el rol';
+      toast.error(message);
+    }
+  };
+
   const openEdit = (user: User) => {
     setSelectedUser(user);
     setFormData({
@@ -296,9 +309,21 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                     <TableCell className="font-medium">{user.fullName}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {ROLES.find(r => r.value === user.role)?.label || user.role}
-                      </Badge>
+                      <Select
+                        value={user.role}
+                        onValueChange={(val: UserRoleEnum) => handleRoleChange(user.id, val)}
+                      >
+                        <SelectTrigger className="w-[140px] h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map(role => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

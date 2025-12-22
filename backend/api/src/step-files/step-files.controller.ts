@@ -10,17 +10,27 @@ import {
   BadRequestException,
   Res,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { StepFilesService } from './step-files.service';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '@prisma/client';
 import type { Response } from 'express';
 
 @Controller('steps')
+@UseGuards(RolesGuard)
 export class StepFilesController {
   constructor(private readonly stepFilesService: StepFilesService) { }
 
+  /**
+   * Subir archivo a un paso.
+   * LECTOR no puede subir archivos.
+   */
   @Post(':stepId/files')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -71,7 +81,12 @@ export class StepFilesController {
     stream.pipe(res);
   }
 
+  /**
+   * Eliminar archivo de un paso.
+   * LECTOR no puede eliminar archivos.
+   */
   @Delete(':stepId/files/:fileId')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE)
   async deleteFile(
     @Param('stepId', ParseIntPipe) stepId: number,
     @Param('fileId', ParseIntPipe) fileId: number,
@@ -82,3 +97,4 @@ export class StepFilesController {
     return { success: true };
   }
 }
+

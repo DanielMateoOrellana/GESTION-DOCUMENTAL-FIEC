@@ -34,7 +34,7 @@ export function AppSidebar({
   currentUser,
   onLogout,
 }: AppSidebarProps) {
-  const menuItems = [
+  const allMenuItems = [
     {
       id: "dashboard",
       label: "Tablero",
@@ -43,8 +43,16 @@ export function AppSidebar({
     { id: "processes", label: "Procesos", icon: FolderKanban },
     { id: "templates", label: "Plantillas", icon: FileText },
     { id: "process-types", label: "Tipos de proceso", icon: List },
-    { id: "admin", label: "Administración", icon: Settings },
+    { id: "admin", label: "Administración", icon: Settings, adminOnly: true },
   ];
+
+  // Filtrar items según rol
+  const menuItems = allMenuItems.filter(item => {
+    if (item.adminOnly && currentUser.role !== 'ADMINISTRADOR') {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <Sidebar>

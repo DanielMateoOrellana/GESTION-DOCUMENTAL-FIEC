@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { R2Service } from '../r2/r2.service';
 import { CreateProcessInstanceDto } from './dto/create-process-instance.dto';
-import { EstadoProceso, EstadoPaso } from '@prisma/client';
+import { EstadoProceso, EstadoPaso, UserRole } from '@prisma/client';
 import { AuditLogService, AuditActions, EntityTypes } from '../audit-log/audit-log.service';
 
 @Injectable()
@@ -83,8 +83,24 @@ export class ProcessInstancesService {
     return instance;
   }
 
-  findAll() {
+  /**
+   * Obtiene todos los procesos.
+   * - Admin: ve todos los procesos
+   * - Otros roles: solo ven procesos donde son creador o responsable
+   */
+  findAll(userId: number, userRole: UserRole) {
+    // Admin tiene visión global
+    const whereCondition = userRole === UserRole.ADMINISTRADOR
+      ? {}
+      : {
+        OR: [
+          { createdById: userId },
+          { responsibleUserId: userId },
+        ],
+      };
+
     return this.prisma.processInstance.findMany({
+      where: whereCondition,
       include: {
         processType: true,
         template: true,
@@ -92,13 +108,17 @@ export class ProcessInstancesService {
           orderBy: { id: 'asc' }
         },
         responsibleUser: true,
-        // tags removido de aquí
       },
       orderBy: { id: 'desc' },
     });
   }
 
-  async findOne(id: number) {
+  /**
+   * Obtiene un proceso por ID.
+   * - Admin: puede ver cualquier proceso
+   * - Otros roles: solo si son creador o responsable
+   */
+  async findOne(id: number, userId?: number, userRole?: UserRole) {
     const instance = await this.prisma.processInstance.findUnique({
       where: { id },
       include: {
@@ -120,6 +140,14 @@ export class ProcessInstancesService {
       throw new NotFoundException(
         `Instancia de proceso #${id} no encontrada`,
       );
+    }
+
+    // Verificar acceso si se proporciona contexto de usuario
+    if (userId && userRole && userRole !== UserRole.ADMINISTRADOR) {
+      const hasAccess = instance.createdById === userId || instance.responsibleUserId === userId;
+      if (!hasAccess) {
+        throw new ForbiddenException('No tienes permiso para ver este proceso');
+      }
     }
 
     return instance;
