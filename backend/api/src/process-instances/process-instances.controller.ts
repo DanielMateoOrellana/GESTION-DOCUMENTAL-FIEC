@@ -165,6 +165,27 @@ export class ProcessInstancesController {
   }
 
   /**
+   * Agrega un paso dinámico a una instancia de proceso.
+   * También lo agrega a la plantilla asociada.
+   * Solo ADMINISTRADOR y GESTOR pueden agregar pasos.
+   */
+  @Post(':id/add-step')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR)
+  async addStep(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('name') stepName: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.id;
+
+    if (!stepName || !stepName.trim()) {
+      throw new BadRequestException('El nombre del paso es requerido');
+    }
+
+    return this.service.addStep(id, stepName.trim(), userId);
+  }
+
+  /**
    * Elimina una instancia de proceso y todos sus archivos.
    * LECTOR no puede eliminar procesos.
    */
@@ -180,3 +201,4 @@ export class ProcessInstancesController {
     return this.service.remove(id, userId);
   }
 }
+

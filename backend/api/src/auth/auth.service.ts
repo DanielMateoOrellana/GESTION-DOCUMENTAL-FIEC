@@ -93,15 +93,7 @@ export class AuthService {
 
     const token = await this.jwtService.signAsync(payload);
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.LOGIN,
-      entityType: EntityTypes.SESSION,
-      entityId: user.id,
-      description: `Usuario "${user.fullName}" inició sesión`,
-      details: { email: user.email },
-      userId: user.id,
-    });
+    // Nota: Auditoría de LOGIN removida - no está en whitelist
 
     return {
       access_token: token,

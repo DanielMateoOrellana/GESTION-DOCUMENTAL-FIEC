@@ -23,15 +23,7 @@ export class ProcessTypesService {
       },
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.CREATE,
-      entityType: EntityTypes.PROCESS_TYPE,
-      entityId: processType.id,
-      description: `Tipo de proceso "${processType.name}" creado`,
-      details: { name: processType.name, categoryId: data.categoryId },
-      userId,
-    });
+    // Nota: Auditoría de ProcessType removida - no está en whitelist
 
     return processType;
   }
@@ -61,15 +53,7 @@ export class ProcessTypesService {
       include: { category: true },
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.UPDATE,
-      entityType: EntityTypes.PROCESS_TYPE,
-      entityId: processType.id,
-      description: `Tipo de proceso "${processType.name}" actualizado`,
-      details: { previousName: existing.name, newName: data.name },
-      userId,
-    });
+    // Nota: Auditoría de ProcessType removida - no está en whitelist
 
     return processType;
   }
@@ -92,14 +76,7 @@ export class ProcessTypesService {
       where: { id },
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.DELETE,
-      entityType: EntityTypes.PROCESS_TYPE,
-      entityId: id,
-      description: `Tipo de proceso "${processType.name}" eliminado`,
-      userId,
-    });
+    // Nota: Auditoría de ProcessType removida - no está en whitelist
 
     return processType;
   }

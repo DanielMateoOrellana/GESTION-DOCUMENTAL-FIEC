@@ -92,16 +92,7 @@ export class UsersService {
             }
         });
 
-        // Registrar en bitácora
-        const changedFields = Object.keys(updateUserDto).filter(k => k !== 'password');
-        await this.auditLog.log({
-            action: AuditActions.UPDATE,
-            entityType: EntityTypes.USER,
-            entityId: user.id,
-            description: `Usuario "${user.fullName}" actualizado`,
-            details: { changedFields, email: user.email },
-            userId: updatedByUserId,
-        });
+        // Nota: Auditoría de UPDATE removida - no está en whitelist
 
         return user;
     }
@@ -109,14 +100,7 @@ export class UsersService {
     async remove(id: number, deletedByUserId?: number) {
         const user = await this.findOne(id);
 
-        // Registrar en bitácora
-        await this.auditLog.log({
-            action: AuditActions.DEACTIVATE,
-            entityType: EntityTypes.USER,
-            entityId: id,
-            description: `Usuario "${user?.fullName}" desactivado`,
-            userId: deletedByUserId,
-        });
+        // Nota: Auditoría de DEACTIVATE removida - no está en whitelist
 
         // Soft delete / deactivate
         return this.update(id, { isActive: false }, deletedByUserId);

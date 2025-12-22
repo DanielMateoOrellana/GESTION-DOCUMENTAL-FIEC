@@ -6,6 +6,7 @@ import {
   fetchProcessInstances,
   downloadProcessZip,
   deleteProcessInstance,
+  addStepToProcess,
   type ProcessInstance as ApiProcessInstance,
 } from "../api/processInstances";
 
@@ -14,6 +15,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Separator } from "./ui/separator";
+import { Input } from "./ui/input";
 import {
   ArrowLeft,
   Upload,
@@ -28,6 +30,7 @@ import {
   Loader2,
   Trash2,
   AlertTriangle,
+  Plus,
 } from "lucide-react";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
@@ -96,6 +99,31 @@ export function ProcessDetailSimple({
   // Delete state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Add Step state
+  const [addStepName, setAddStepName] = useState('');
+  const [addStepOpen, setAddStepOpen] = useState(false);
+  const [addingStep, setAddingStep] = useState(false);
+
+  const handleAddStep = async () => {
+    if (!addStepName.trim() || !process) return;
+
+    try {
+      setAddingStep(true);
+      await addStepToProcess(process.id, addStepName.trim());
+      toast.success(`Paso "${addStepName}" agregado exitosamente`);
+      setAddStepName('');
+      setAddStepOpen(false);
+      // Recargar el proceso para ver el nuevo paso
+      await load();
+    } catch (err: any) {
+      console.error('Error agregando paso:', err);
+      const message = err.response?.data?.message || 'Error al agregar el paso';
+      toast.error(message);
+    } finally {
+      setAddingStep(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -442,8 +470,63 @@ export function ProcessDetailSimple({
 
       {/* Steps Card – usando los pasos reales del backend */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle>Pasos del Proceso</CardTitle>
+          {/* Botón para agregar paso - solo ADMIN y GESTOR */}
+          {(currentUser.role === 'ADMINISTRADOR' || currentUser.role === 'GESTOR') && (
+            <div className="flex items-center gap-2">
+              {addStepOpen ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Nombre del nuevo paso..."
+                    value={addStepName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddStepName(e.target.value)}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === 'Enter') handleAddStep();
+                      if (e.key === 'Escape') {
+                        setAddStepOpen(false);
+                        setAddStepName('');
+                      }
+                    }}
+                    className="h-8 w-[200px]"
+                    autoFocus
+                    disabled={addingStep}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddStep}
+                    disabled={addingStep || !addStepName.trim()}
+                  >
+                    {addingStep ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      'Agregar'
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAddStepOpen(false);
+                      setAddStepName('');
+                    }}
+                    disabled={addingStep}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddStepOpen(true)}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Agregar Paso
+                </Button>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {steps.length === 0 && (

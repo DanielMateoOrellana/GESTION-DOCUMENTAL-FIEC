@@ -624,7 +624,6 @@ export class ProcessInstancesService {
       userId,
     });
 
-    // Retornar el proceso creado con estadísticas
     return {
       process: instance,
       stats: {
@@ -632,6 +631,81 @@ export class ProcessInstancesService {
         filesSkipped,
         stepsCreated: instance.steps.length,
       },
+    };
+  }
+
+  /**
+   * Agrega un paso dinámico a una instancia de proceso existente.
+   * También lo agrega a la plantilla para que futuros procesos lo tengan.
+   */
+  async addStep(instanceId: number, stepName: string, userId: number) {
+    // 1. Obtener la instancia con su plantilla
+    const instance = await this.prisma.processInstance.findUnique({
+      where: { id: instanceId },
+      include: {
+        template: {
+          include: {
+            steps: { orderBy: { order: 'asc' } }
+          }
+        },
+        steps: { orderBy: { id: 'asc' } }
+      }
+    });
+
+    if (!instance) {
+      throw new NotFoundException(`Proceso #${instanceId} no encontrado`);
+    }
+
+    if (!instance.templateId || !instance.template) {
+      throw new NotFoundException('El proceso no tiene una plantilla asociada');
+    }
+
+    // 2. Calcular el orden del nuevo paso (último + 1)
+    const maxOrder = instance.template.steps.reduce(
+      (max, step) => Math.max(max, step.order), 0
+    );
+    const newOrder = maxOrder + 1;
+
+    // 3. Crear el paso en la plantilla (ProcessTemplateStep)
+    const templateStep = await this.prisma.processTemplateStep.create({
+      data: {
+        templateId: instance.templateId,
+        name: stepName,
+        description: 'Paso agregado dinámicamente',
+        isMandatory: false,
+        order: newOrder,
+      }
+    });
+
+    // 4. Crear el paso en la instancia actual (StepInstance)
+    const stepInstance = await this.prisma.stepInstance.create({
+      data: {
+        processInstanceId: instanceId,
+        title: stepName,
+        estado: EstadoPaso.PENDIENTE,
+        templateStepId: templateStep.id,
+      }
+    });
+
+    // 5. Registrar en bitácora
+    await this.auditLog.log({
+      action: 'ADD_STEP',
+      entityType: EntityTypes.PROCESS_INSTANCE,
+      entityId: instanceId,
+      description: `Paso "${stepName}" agregado al proceso #${instanceId}`,
+      details: {
+        stepName,
+        templateStepId: templateStep.id,
+        stepInstanceId: stepInstance.id,
+        templateId: instance.templateId,
+      },
+      userId,
+    });
+
+    return {
+      templateStep,
+      stepInstance,
+      message: `Paso "${stepName}" agregado exitosamente`,
     };
   }
 

@@ -22,15 +22,7 @@ export class ProcessCategoriesService {
       },
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.CREATE,
-      entityType: EntityTypes.PROCESS_CATEGORY,
-      entityId: category.id,
-      description: `Categoría "${category.name}" creada`,
-      details: { name: category.name },
-      userId,
-    });
+    // Nota: Auditoría de ProcessCategory removida - no está en whitelist
 
     return category;
   }
@@ -62,15 +54,7 @@ export class ProcessCategoriesService {
       data,
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.UPDATE,
-      entityType: EntityTypes.PROCESS_CATEGORY,
-      entityId: category.id,
-      description: `Categoría "${category.name}" actualizada`,
-      details: { previousName: existing.name, newName: data.name },
-      userId,
-    });
+    // Nota: Auditoría de ProcessCategory removida - no está en whitelist
 
     return category;
   }
@@ -91,14 +75,7 @@ export class ProcessCategoriesService {
 
     await this.prisma.processCategory.delete({ where: { id } });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.DELETE,
-      entityType: EntityTypes.PROCESS_CATEGORY,
-      entityId: id,
-      description: `Categoría "${category.name}" eliminada`,
-      userId,
-    });
+    // Nota: Auditoría de ProcessCategory removida - no está en whitelist
 
     return category;
   }

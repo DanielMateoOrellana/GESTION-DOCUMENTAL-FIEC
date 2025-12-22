@@ -48,19 +48,7 @@ export class ProcessTemplatesService {
       },
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.CREATE,
-      entityType: EntityTypes.PROCESS_TEMPLATE,
-      entityId: template.id,
-      description: `Plantilla "${template.name}" creada`,
-      details: {
-        name: template.name,
-        processTypeId: dto.processTypeId,
-        stepsCount: dto.steps?.length || 0,
-      },
-      userId,
-    });
+    // Nota: Auditoría de CREATE removida - solo DELETE está en whitelist
 
     return template;
   }
@@ -163,18 +151,7 @@ export class ProcessTemplatesService {
       });
     });
 
-    // Registrar en bitácora
-    await this.auditLog.log({
-      action: AuditActions.UPDATE,
-      entityType: EntityTypes.PROCESS_TEMPLATE,
-      entityId: id,
-      description: `Plantilla "${result?.name}" actualizada`,
-      details: {
-        name: dto.name,
-        stepsUpdated: dto.steps?.length || 0,
-      },
-      userId,
-    });
+    // Nota: Auditoría de UPDATE removida - solo DELETE está en whitelist
 
     return result;
   }

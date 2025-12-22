@@ -150,3 +150,17 @@ export async function exportBulkProcesses(ids: number[]): Promise<Blob> {
 export async function deleteProcessInstance(id: number): Promise<void> {
   await api.delete(`/process-instances/${id}`);
 }
+
+/**
+ * Agrega un paso dinámico a una instancia de proceso.
+ * También agrega el paso a la plantilla asociada.
+ */
+export async function addStepToProcess(processId: number, stepName: string): Promise<{
+  templateStep: any;
+  stepInstance: any;
+  message: string;
+}> {
+  const { data } = await api.post(`/process-instances/${processId}/add-step`, { name: stepName });
+  return data;
+}
+

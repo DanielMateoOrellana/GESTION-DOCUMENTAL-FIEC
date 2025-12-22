@@ -82,18 +82,7 @@ export class StepFilesService {
       userId,
     });
 
-    // Si el paso se completó, registrar también
-    await this.auditLog.log({
-      action: AuditActions.COMPLETE,
-      entityType: EntityTypes.STEP_INSTANCE,
-      entityId: stepId,
-      description: `Paso "${step.title}" completado`,
-      details: {
-        processInstanceId: step.processInstanceId,
-        fileId: created.id,
-      },
-      userId,
-    });
+    // Nota: Auditoría de COMPLETE removida - no está en whitelist
 
     if (allStepsCompleted) {
       // 3. Si todo está completo, marcar el proceso como COMPLETADO
@@ -105,17 +94,7 @@ export class StepFilesService {
         },
       });
 
-      // Registrar en bitácora - proceso completado
-      await this.auditLog.log({
-        action: AuditActions.COMPLETE,
-        entityType: EntityTypes.PROCESS_INSTANCE,
-        entityId: step.processInstance.id,
-        description: `Proceso "${step.processInstance.title || `#${step.processInstance.id}`}" completado`,
-        details: {
-          totalSteps: step.processInstance.steps.length,
-        },
-        userId,
-      });
+      // Nota: Auditoría de COMPLETE removida - no está en whitelist
     }
     // ---------------------------------
 
