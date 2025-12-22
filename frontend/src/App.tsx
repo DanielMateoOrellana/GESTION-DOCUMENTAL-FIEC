@@ -9,7 +9,7 @@ import { Login } from './components/Login';
 import { AppSidebar } from './components/AppSidebar';
 import logoEspol from './assets/2793a7bad49c6296879d99578377c2b3f531f7e5.png'; // Ajusta si la ruta es diferente
 import { Toaster } from './components/ui/sonner';
-import { SidebarProvider } from './components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger } from './components/ui/sidebar';
 import { useAuth } from './auth/AuthContext';
 import type { User } from './types';
 import { Register } from './components/Register';
@@ -144,30 +144,37 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
         />
-        <div className="flex-1 flex flex-col">
-          {/* Top Header */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Top Header - Responsive */}
           <header className="border-b bg-white sticky top-0 z-10">
-            <div className="flex items-center justify-between px-6 py-3">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between px-3 sm:px-6 py-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Mobile Menu Button */}
+                <SidebarTrigger className="md:hidden" />
                 <img
                   src={logoEspol}
                   alt="ESPOL"
-                  className="h-6 w-auto object-contain"
+                  className="h-5 sm:h-6 w-auto object-contain"
                 />
-                <h2 className="text-muted-foreground">
+                <h2 className="text-muted-foreground text-sm sm:text-base truncate max-w-[150px] sm:max-w-none">
                   Repositorio Institucional de Evidencias - FIEC
                 </h2>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                   {currentUser.fullName} ({currentUser.role})
+                </div>
+                <div className="text-xs text-muted-foreground sm:hidden">
+                  {currentUser.fullName.split(' ')[0]}
                 </div>
               </div>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 bg-secondary">{renderView()}</main>
+          {/* Main Content - Responsive padding */}
+          <main className="flex-1 bg-secondary overflow-x-hidden">
+            {renderView()}
+          </main>
         </div>
       </div>
       <Toaster />

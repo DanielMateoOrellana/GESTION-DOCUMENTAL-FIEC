@@ -172,33 +172,33 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
     // Se usa el mismo padding y espaciado que ProcessListSimple
     <div className="p-6 space-y-6">
 
-      {/* Header idéntico en estructura a ProcessListSimple */}
-      <div className="flex items-center justify-between">
+      {/* Header idéntico en estructura a ProcessListSimple - Responsive */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1>Tablero de Control</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Supervisa el estado y cumplimiento de los procesos
           </p>
         </div>
 
-        {/* Bloque de estadísticas alineado a la derecha (donde irían los botones de acción) */}
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border shadow-sm">
-          <div className="px-4 py-1 text-center border-r">
+        {/* Bloque de estadísticas - Responsive grid */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 bg-white p-1.5 rounded-xl border shadow-sm">
+          <div className="px-3 sm:px-4 py-1 text-center border-r">
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</span>
-            <span className="text-xl font-bold text-gray-900">{tasks.length}</span>
+            <span className="text-lg sm:text-xl font-bold text-gray-900">{tasks.length}</span>
           </div>
-          <div className="px-4 py-1 text-center border-r">
+          <div className="px-3 sm:px-4 py-1 text-center sm:border-r">
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Pendientes</span>
-            <span className="text-xl font-bold text-yellow-600">{tasks.filter(t => t.status === 'PENDIENTE').length}</span>
+            <span className="text-lg sm:text-xl font-bold text-yellow-600">{tasks.filter(t => t.status === 'PENDIENTE').length}</span>
           </div>
           {/* NUEVO: Contador de completados */}
-          <div className="px-4 py-1 text-center border-r">
+          <div className="px-3 sm:px-4 py-1 text-center border-r">
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Completados</span>
-            <span className="text-xl font-bold text-green-600">{tasks.filter(t => t.status === 'COMPLETADO').length}</span>
+            <span className="text-lg sm:text-xl font-bold text-green-600">{tasks.filter(t => t.status === 'COMPLETADO').length}</span>
           </div>
-          <div className="px-4 py-1 text-center">
+          <div className="px-3 sm:px-4 py-1 text-center">
             <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencidos</span>
-            <span className="text-xl font-bold text-red-600">{tasks.filter(t => t.overdue).length}</span>
+            <span className="text-lg sm:text-xl font-bold text-red-600">{tasks.filter(t => t.overdue).length}</span>
           </div>
         </div>
       </div>

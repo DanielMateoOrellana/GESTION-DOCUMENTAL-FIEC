@@ -228,16 +228,17 @@ export function ProcessListSimple({
     }
   };
 
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Procesos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Procesos</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Gestión de procesos institucionales
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {selectedItems.length > 0 && (
             <Button variant="outline" onClick={handleExport} disabled={exporting}>
               {exporting ? (
@@ -348,87 +349,90 @@ export function ProcessListSimple({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={
-                      selectedItems.length === filteredProcesses.length &&
-                      filteredProcesses.length > 0
-                    }
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Título</TableHead>
-                <TableHead>Año</TableHead>
-                <TableHead>Responsable</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Progreso</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProcesses.map((process) => {
-                const state = getSimplifiedState(process.estado);
+          {/* Wrapper para scroll horizontal en móviles */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        selectedItems.length === filteredProcesses.length &&
+                        filteredProcesses.length > 0
+                      }
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Año</TableHead>
+                  <TableHead>Responsable</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Progreso</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProcesses.map((process) => {
+                  const state = getSimplifiedState(process.estado);
 
-                const responsibleLabel =
-                  process.responsibleUser?.fullName ||
-                  (process.responsibleUserId != null
-                    ? `Usuario #${process.responsibleUserId}`
-                    : "Sin asignar");
+                  const responsibleLabel =
+                    process.responsibleUser?.fullName ||
+                    (process.responsibleUserId != null
+                      ? `Usuario #${process.responsibleUserId}`
+                      : "Sin asignar");
 
-                const minSteps = process.steps || [];
-                const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
-                const totalSteps = minSteps.length;
-                const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                  const minSteps = process.steps || [];
+                  const completedSteps = minSteps.filter(s => s.estado === 'COMPLETADO').length;
+                  const totalSteps = minSteps.length;
+                  const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-                return (
-                  <TableRow
-                    key={process.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onViewChange("process-detail", { processId: process.id })}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedItems.includes(process.id)}
-                        onCheckedChange={() => handleSelectItem(process.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {getProcessTypeName(process.processTypeId)}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {process.title ||
-                        (process.processTypeId
-                          ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""}`
-                          : `Proceso ${process.id}`)}
-                    </TableCell>
-                    <TableCell>
-                      {process.year ?? new Date(process.createdAt).getFullYear()}
-                    </TableCell>
-                    <TableCell>{responsibleLabel}</TableCell>
-                    <TableCell>
-                      <Badge className={state.color}>{state.label}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 min-w-[120px]">
-                        <div className="flex items-center gap-2">
-                          <Progress value={progressPercent} className="h-2 flex-1" />
-                          <span className="text-xs text-muted-foreground w-8 text-right">
-                            {progressPercent}%
-                          </span>
+                  return (
+                    <TableRow
+                      key={process.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => onViewChange("process-detail", { processId: process.id })}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedItems.includes(process.id)}
+                          onCheckedChange={() => handleSelectItem(process.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {getProcessTypeName(process.processTypeId)}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {process.title ||
+                          (process.processTypeId
+                            ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""}`
+                            : `Proceso ${process.id}`)}
+                      </TableCell>
+                      <TableCell>
+                        {process.year ?? new Date(process.createdAt).getFullYear()}
+                      </TableCell>
+                      <TableCell>{responsibleLabel}</TableCell>
+                      <TableCell>
+                        <Badge className={state.color}>{state.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 min-w-[120px]">
+                          <div className="flex items-center gap-2">
+                            <Progress value={progressPercent} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground w-8 text-right">
+                              {progressPercent}%
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {completedSteps} de {totalSteps} completados
+                          </div>
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {completedSteps} de {totalSteps} completados
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
           {filteredProcesses.length === 0 && !loading && (
             <div className="text-center py-12 text-muted-foreground">
               <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
