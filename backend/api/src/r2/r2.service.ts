@@ -5,6 +5,7 @@ import {
     GetObjectCommand,
     DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
 
 @Injectable()
@@ -131,4 +132,25 @@ export class R2Service implements OnModuleInit {
             .substring(0, 100);
         return `${prefix}${uuid}-${sanitizedName}`;
     }
+
+    /**
+     * Genera una URL firmada (presigned) para acceso temporal al archivo
+     * Configurada para visualización inline (especialmente para PDFs)
+     * @param key - Key del archivo en R2
+     * @param expiresIn - Tiempo de expiración en segundos (default: 15 minutos)
+     * @returns URL firmada
+     */
+    async getPresignedUrl(key: string, expiresIn: number = 900): Promise<string> {
+        const command = new GetObjectCommand({
+            Bucket: this.bucketName,
+            Key: key,
+            ResponseContentDisposition: 'inline',
+            ResponseContentType: 'application/pdf',
+        });
+
+        const url = await getSignedUrl(this.s3Client, command, { expiresIn });
+        this.logger.debug(`Generated presigned URL for: ${key} (expires in ${expiresIn}s)`);
+        return url;
+    }
 }
+

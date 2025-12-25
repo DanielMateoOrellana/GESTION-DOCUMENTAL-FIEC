@@ -36,7 +36,7 @@ import {
   type ProcessInstance,
 } from "../api/processInstances";
 import { FormField } from "./ui/form-field";
-import { LoadingSpinner, TableSkeleton } from "./ui/loading-spinner";
+import { LoadingSpinner } from "./ui/loading-spinner"; // Removed unused TableSkeleton
 import { cn } from "./ui/utils";
 
 interface CreateProcessModalProps {
@@ -90,7 +90,7 @@ export function CreateProcessModal({
         setTemplates(allTemplates);
       } catch (error) {
         console.error(error);
-        setLoadError("No se pudieron cargar los datos. Por favor, intente nuevamente.");
+        setLoadError("No se pudieron cargar los datos.");
         toast.error("Error al cargar datos iniciales");
       } finally {
         setLoading(false);
@@ -115,18 +115,12 @@ export function CreateProcessModal({
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
 
-    if (!selectedProcessTypeId) {
-      errors.processType = "Seleccione un tipo de proceso";
-    }
-
-    if (!selectedTemplateId) {
-      errors.template = "Seleccione una plantilla";
-    }
-
+    if (!selectedProcessTypeId) errors.processType = "Seleccione un tipo";
+    if (!selectedTemplateId) errors.template = "Seleccione una plantilla";
     if (!processTitle.trim()) {
       errors.title = "El título es requerido";
     } else if (processTitle.trim().length < 5) {
-      errors.title = "El título debe tener al menos 5 caracteres";
+      errors.title = "Mínimo 5 caracteres";
     }
 
     setFormErrors(errors);
@@ -136,7 +130,7 @@ export function CreateProcessModal({
 
   const handleCreate = async () => {
     if (!validateForm()) {
-      toast.error("Por favor complete todos los campos requeridos");
+      toast.error("Complete los campos requeridos");
       return;
     }
 
@@ -156,7 +150,6 @@ export function CreateProcessModal({
       const newInstance = await createProcessInstance(payload);
 
       toast.success("Proceso creado exitosamente", {
-        description: `${processTitle} ha sido creado correctamente.`,
         icon: <CheckCircle className="w-4 h-4" />,
       });
 
@@ -168,10 +161,8 @@ export function CreateProcessModal({
       onClose();
     } catch (error: any) {
       console.error(error);
-      const errorMessage = error.response?.data?.message || "No se pudo crear el proceso";
-      toast.error("Error al crear el proceso", {
-        description: errorMessage,
-      });
+      const errorMessage = error.response?.data?.message || "Error al crear";
+      toast.error("Error", { description: errorMessage });
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +189,6 @@ export function CreateProcessModal({
     setTouched(prev => ({ ...prev, [field]: true }));
   };
 
-  // Generate years dynamically
   const currentYear = new Date().getFullYear();
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2];
 
@@ -219,26 +209,28 @@ export function CreateProcessModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* CAMBIO 1: Reducir ancho máximo a 'sm:max-w-lg' (antes 4xl) */}
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Proceso</DialogTitle>
           <DialogDescription>
-            Complete la información para crear un nuevo proceso institucional. Los campos marcados con * son requeridos.
+            Complete la información requerida.
           </DialogDescription>
         </DialogHeader>
 
         {loadError ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
-            <p className="text-destructive font-medium mb-2">Error al cargar datos</p>
-            <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
-            <Button variant="outline" onClick={() => { setLoadError(null); }}>
+          <div className="flex flex-col items-center justify-center py-8">
+            <AlertTriangle className="w-10 h-10 text-destructive mb-2" />
+            <p className="text-sm text-destructive mb-4">{loadError}</p>
+            <Button variant="outline" size="sm" onClick={() => { setLoadError(null); loadData(); }}>
               Reintentar
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column - Form */}
+          /* CAMBIO 2: Grid de 1 sola columna siempre (antes md:grid-cols-2) */
+          <div className="grid grid-cols-1 gap-5">
+
+            {/* Formulario */}
             <div className="space-y-4">
               <FormField
                 label="Tipo de proceso"
@@ -248,53 +240,35 @@ export function CreateProcessModal({
               >
                 <Select
                   value={selectedProcessTypeId}
-                  onValueChange={(value: string) => {
+                  onValueChange={(value) => {
                     setSelectedProcessTypeId(value);
                     setSelectedTemplateId("");
                     setFormErrors(prev => ({ ...prev, processType: undefined }));
                   }}
                   disabled={loading}
                 >
-                  <SelectTrigger
-                    id="processType"
-                    className={cn(
-                      touched.processType && formErrors.processType && "border-destructive"
-                    )}
-                  >
-                    <SelectValue
-                      placeholder={loading ? "Cargando..." : "Seleccione un tipo"}
-                    />
+                  <SelectTrigger id="processType" className={cn(touched.processType && formErrors.processType && "border-destructive")}>
+                    <SelectValue placeholder="Seleccione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {processTypes.length === 0 && !loading ? (
-                      <div className="py-4 text-center text-sm text-muted-foreground">
-                        No hay tipos de proceso disponibles
-                      </div>
-                    ) : (
-                      processTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name}
-                        </SelectItem>
-                      ))
-                    )}
+                    {processTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id.toString()}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>
 
               {selectedProcessTypeId && (
                 <>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 pb-1">
                     <Checkbox
                       id="showObsolete"
                       checked={showObsoleteTemplates}
-                      onCheckedChange={(checked: boolean) =>
-                        setShowObsoleteTemplates(checked)
-                      }
+                      onCheckedChange={(c: boolean) => setShowObsoleteTemplates(c)}
                     />
-                    <Label
-                      htmlFor="showObsolete"
-                      className="text-sm cursor-pointer text-muted-foreground"
-                    >
+                    <Label htmlFor="showObsolete" className="text-xs cursor-pointer text-muted-foreground">
                       Mostrar plantillas inactivas
                     </Label>
                   </div>
@@ -304,39 +278,24 @@ export function CreateProcessModal({
                     htmlFor="template"
                     required
                     error={touched.template ? formErrors.template : undefined}
-                    hint={availableTemplates.length === 0 && !loading ? "No hay plantillas disponibles para este tipo" : undefined}
                   >
                     <Select
                       value={selectedTemplateId}
-                      onValueChange={(value: string) => {
+                      onValueChange={(value) => {
                         setSelectedTemplateId(value);
                         setFormErrors(prev => ({ ...prev, template: undefined }));
                       }}
                       disabled={loading || availableTemplates.length === 0}
                     >
-                      <SelectTrigger
-                        id="template"
-                        className={cn(
-                          touched.template && formErrors.template && "border-destructive"
-                        )}
-                      >
-                        <SelectValue
-                          placeholder={
-                            loading ? "Cargando..." : "Seleccione una plantilla"
-                          }
-                        />
+                      <SelectTrigger id="template" className={cn(touched.template && formErrors.template && "border-destructive")}>
+                        <SelectValue placeholder="Seleccione..." />
                       </SelectTrigger>
                       <SelectContent>
                         {availableTemplates.map((template) => (
-                          <SelectItem
-                            key={template.id}
-                            value={template.id.toString()}
-                          >
+                          <SelectItem key={template.id} value={template.id.toString()}>
                             <div className="flex items-center gap-2">
-                              <span>{template.name || template.description}</span>
-                              {!template.isActive && (
-                                <Badge variant="secondary" className="text-xs">Inactiva</Badge>
-                              )}
+                              <span>{template.name}</span>
+                              {!template.isActive && <Badge variant="secondary" className="text-[10px] h-4">Inactiva</Badge>}
                             </div>
                           </SelectItem>
                         ))}
@@ -347,75 +306,48 @@ export function CreateProcessModal({
               )}
 
               <FormField
-                label="Título del proceso"
+                label="Título"
                 htmlFor="title"
                 required
                 error={touched.title ? formErrors.title : undefined}
-                hint="Ej: Evaluación Docente 2025-1"
               >
                 <Input
                   id="title"
                   value={processTitle}
-                  onChange={(e) => {
-                    setProcessTitle(e.target.value);
-                    if (e.target.value.trim().length >= 5) {
-                      setFormErrors(prev => ({ ...prev, title: undefined }));
-                    }
-                  }}
+                  onChange={(e) => setProcessTitle(e.target.value)}
                   onBlur={() => handleBlur('title')}
-                  placeholder="Ingrese un título descriptivo"
-                  className={cn(
-                    touched.title && formErrors.title && "border-destructive focus-visible:ring-destructive"
-                  )}
+                  placeholder="Ej: Evaluación 2025"
+                  className={cn(touched.title && formErrors.title && "border-destructive")}
                 />
               </FormField>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Año" htmlFor="year" required>
                   <Select value={year} onValueChange={setYear}>
-                    <SelectTrigger id="year">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {years.map(y => (
-                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                      ))}
+                      {years.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </FormField>
 
                 <FormField label="Mes" htmlFor="month" required>
                   <Select value={month} onValueChange={setMonth}>
-                    <SelectTrigger id="month">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {months.map(m => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
+                      {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </FormField>
               </div>
 
-              <FormField
-                label="Fecha de Término"
-                htmlFor="dueAt"
-                hint="Esta fecha se aplicará como límite para el proceso y todos sus pasos."
-              >
+              <FormField label="Fecha Límite" htmlFor="dueAt">
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="dueAt"
                     type="date"
                     value={dueAt ? format(dueAt, "yyyy-MM-dd") : ""}
-                    onChange={(e) => {
-                      if (!e.target.value) {
-                        setDueAt(undefined);
-                      } else {
-                        setDueAt(new Date(e.target.value + "T12:00:00"));
-                      }
-                    }}
+                    onChange={(e) => e.target.value ? setDueAt(new Date(e.target.value + "T12:00:00")) : setDueAt(undefined)}
                     className="pl-9"
                     min={format(new Date(), "yyyy-MM-dd")}
                   />
@@ -423,113 +355,32 @@ export function CreateProcessModal({
               </FormField>
             </div>
 
-            {/* Right Column - Template Preview */}
-            <div>
-              {loading ? (
-                <Card>
-                  <CardContent className="pt-6">
-                    <LoadingSpinner size="lg" text="Cargando plantillas..." className="py-12" />
-                  </CardContent>
-                </Card>
-              ) : selectedTemplateId && selectedTemplate ? (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Vista previa de plantilla
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Nombre</div>
-                      <div className="text-sm font-medium mt-1">
-                        {selectedTemplate.name || selectedTemplate.description}
-                      </div>
-                    </div>
-                    {selectedTemplate.description && (
-                      <div>
-                        <div className="text-sm text-muted-foreground">Descripción</div>
-                        <div className="text-sm mt-1">{selectedTemplate.description}</div>
-                      </div>
-                    )}
-                    <div>
-                      <div className="text-sm text-muted-foreground">Estado</div>
-                      <Badge
-                        className={cn(
-                          "mt-1",
-                          selectedTemplate.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        )}
-                      >
-                        {selectedTemplate.isActive ? "Activa" : "Inactiva"}
-                      </Badge>
-                    </div>
-                    {selectedTemplate.steps && selectedTemplate.steps.length > 0 && (
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-2">
-                          Pasos ({selectedTemplate.steps.length})
-                        </div>
-                        <div className="space-y-1.5">
-                          {selectedTemplate.steps.slice(0, 5).map((step, index) => (
-                            <div key={step.id} className="flex items-center gap-2 text-xs">
-                              <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                                {index + 1}
-                              </span>
-                              <span className="truncate">{step.name}</span>
-                            </div>
-                          ))}
-                          {selectedTemplate.steps.length > 5 && (
-                            <p className="text-xs text-muted-foreground pl-7">
-                              +{selectedTemplate.steps.length - 5} pasos más
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground pt-2 border-t">
-                      Los pasos del proceso se crearán automáticamente según la
-                      configuración de esta plantilla.
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-dashed">
-                  <CardContent className="pt-6">
-                    <div className="text-center text-muted-foreground py-12">
-                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium mb-1">Sin plantilla seleccionada</p>
-                      <p className="text-sm">
-                        Seleccione un tipo de proceso y una plantilla para ver la información
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Vista Previa (Ahora abajo y opcional visualmente) */}
+            {selectedTemplate && (
+              <div className="pt-2 border-t">
+                <Label className="text-xs text-muted-foreground mb-2 block">Resumen de Plantilla</Label>
+                <div className="bg-slate-50 p-3 rounded-md border text-sm space-y-1">
+                  <div className="font-medium">{selectedTemplate.name}</div>
+                  <div className="text-xs text-muted-foreground">{selectedTemplate.description}</div>
+                  <div className="flex gap-2 text-xs mt-2">
+                    <Badge variant="outline" className="bg-white">{selectedTemplate.steps?.length || 0} pasos</Badge>
+                    <Badge variant={selectedTemplate.isActive ? "default" : "secondary"} className="h-5">
+                      {selectedTemplate.isActive ? "Activa" : "Inactiva"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={submitting || loading || !!loadError}
-            className="min-w-[140px]"
-          >
-            {submitting ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Creando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Crear Proceso
-              </>
-            )}
+          <Button onClick={handleCreate} disabled={submitting || loading || !!loadError}>
+            {submitting && <LoadingSpinner size="sm" className="mr-2" />}
+            Crear Proceso
           </Button>
         </DialogFooter>
       </DialogContent>

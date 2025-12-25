@@ -56,6 +56,17 @@ export class StepFilesController {
     return this.stepFilesService.listByStep(stepId);
   }
 
+  /**
+   * Obtiene URL presigned para previsualizar un archivo PDF
+   */
+  @Get(':stepId/files/:fileId/presigned')
+  async getPresignedUrl(
+    @Param('stepId', ParseIntPipe) stepId: number,
+    @Param('fileId', ParseIntPipe) fileId: number,
+  ) {
+    return this.stepFilesService.getPresignedUrl(stepId, fileId);
+  }
+
   @Get(':stepId/files/:fileId')
   async downloadFile(
     @Param('stepId', ParseIntPipe) stepId: number,

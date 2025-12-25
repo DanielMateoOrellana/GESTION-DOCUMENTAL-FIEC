@@ -250,4 +250,25 @@ export class StepFilesService {
       }
     }
   }
+
+  /**
+   * Obtiene la URL presigned para visualizar un archivo (solo PDF)
+   */
+  async getPresignedUrl(stepId: number, fileId: number): Promise<{ url: string; fileName: string }> {
+    const file = await this.prisma.stepFile.findFirst({
+      where: { id: fileId, stepId },
+    });
+
+    if (!file) {
+      throw new NotFoundException(`Archivo #${fileId} no encontrado en el paso #${stepId}`);
+    }
+
+    const url = await this.r2.getPresignedUrl(file.storageKey);
+
+    return {
+      url,
+      fileName: file.originalName
+    };
+  }
 }
+

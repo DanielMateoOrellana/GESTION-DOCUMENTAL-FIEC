@@ -57,3 +57,15 @@ export async function deleteStepFile(
 ): Promise<void> {
   await api.delete(`/steps/${stepId}/files/${fileId}`);
 }
+
+// Obtener URL presigned para previsualizar archivo (solo PDF)
+export async function getFilePresignedUrl(
+  stepId: number,
+  fileId: number,
+): Promise<{ url: string; fileName: string }> {
+  const { data } = await api.get<{ url: string; fileName: string }>(
+    `/steps/${stepId}/files/${fileId}/presigned`
+  );
+  return data;
+}
+

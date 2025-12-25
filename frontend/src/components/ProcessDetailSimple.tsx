@@ -31,6 +31,7 @@ import {
   Trash2,
   AlertTriangle,
   Plus,
+  Eye,
 } from "lucide-react";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
@@ -46,8 +47,10 @@ import {
   listStepFiles,
   downloadStepFile,
   deleteStepFile,
+  getFilePresignedUrl,
   type StepFileSummary,
 } from "../api/stepFiles";
+import { FileViewerModal } from "./FileViewerModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +107,12 @@ export function ProcessDetailSimple({
   const [addStepName, setAddStepName] = useState('');
   const [addStepOpen, setAddStepOpen] = useState(false);
   const [addingStep, setAddingStep] = useState(false);
+
+  // PDF Viewer state
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState('');
+  const [pdfViewerFileName, setPdfViewerFileName] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const handleAddStep = async () => {
     if (!addStepName.trim() || !process) return;
@@ -252,6 +261,30 @@ export function ProcessDetailSimple({
     } catch (e) {
       console.error("[ProcessDetailSimple] Error descargando archivo", e);
       toast.error("No se pudo descargar el archivo");
+    }
+  };
+
+  const handlePreviewFile = async (stepId: number, file: StepFileSummary) => {
+    // Verificar si es PDF
+    const isPdf = file.originalName.toLowerCase().endsWith('.pdf') ||
+      file.mimeType === 'application/pdf';
+
+    if (!isPdf) {
+      toast.error("Solo se pueden previsualizar archivos PDF. Use el botón de descarga para otros formatos.");
+      return;
+    }
+
+    try {
+      setLoadingPreview(true);
+      const { url, fileName } = await getFilePresignedUrl(stepId, file.id);
+      setPdfViewerUrl(url);
+      setPdfViewerFileName(fileName);
+      setPdfViewerOpen(true);
+    } catch (e) {
+      console.error("[ProcessDetailSimple] Error obteniendo URL presigned", e);
+      toast.error("No se pudo cargar la previsualización del archivo");
+    } finally {
+      setLoadingPreview(false);
     }
   };
 
@@ -582,20 +615,38 @@ export function ProcessDetailSimple({
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          {/* Preview PDF Button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePreviewFile(step.id, file)}
+                            disabled={loadingPreview}
+                            title={file.originalName.toLowerCase().endsWith('.pdf') ? 'Previsualizar PDF' : 'Solo PDFs'}
+                          >
+                            {loadingPreview ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Eye className="w-4 h-4 text-blue-500" />
+                            )}
+                          </Button>
+                          {/* Download Button */}
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDownloadFile(step.id, file)}
+                            title="Descargar archivo"
                           >
                             <Download className="w-4 h-4" />
                           </Button>
+                          {/* Delete Button */}
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() =>
                               handleRemoveFile(file.id, file.originalName)
                             }
+                            title="Eliminar archivo"
                           >
                             <X className="w-4 h-4 text-red-500" />
                           </Button>
@@ -671,6 +722,14 @@ export function ProcessDetailSimple({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de previsualización de PDF */}
+      <FileViewerModal
+        isOpen={pdfViewerOpen}
+        onClose={() => setPdfViewerOpen(false)}
+        fileUrl={pdfViewerUrl}
+        fileName={pdfViewerFileName}
+      />
     </div>
   );
 }
