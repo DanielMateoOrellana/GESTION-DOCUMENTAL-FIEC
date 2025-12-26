@@ -14,21 +14,16 @@ export class StepFilesService {
   ) { }
 
   async upload(stepId: number, file: Express.Multer.File, userId?: number) {
-    // Última versión + 1
     const last = await this.prisma.stepFile.findFirst({
       where: { stepId },
       orderBy: { version: 'desc' },
     });
 
     const version = (last?.version ?? 0) + 1;
-
-    // Generar key única para R2
     const storageKey = this.r2.generateKey(file.originalname, `steps/${stepId}/`);
 
-    // Subir archivo a R2
     await this.r2.upload(storageKey, file.buffer, file.mimetype);
 
-    // Guardar registro en BD (sin el contenido del archivo)
     const created = await this.prisma.stepFile.create({
       data: {
         stepId,
@@ -36,14 +31,12 @@ export class StepFilesService {
         mimeType: file.mimetype,
         sizeBytes: file.size,
         version,
-        storageKey, // Key en R2
-        // content ya no se guarda (solo metadatos)
+        storageKey,
         uploadedById: userId,
       },
     });
 
-    // --- LOGICA DE AUTO-COMPLETADO ---
-    // 1. Marcar el paso actual como COMPLETADO
+    // Auto-complete: marcar paso como completado al subir archivo
     const step = await this.prisma.stepInstance.update({
       where: { id: stepId },
       data: {
@@ -52,19 +45,15 @@ export class StepFilesService {
       },
       include: {
         processInstance: {
-          include: {
-            steps: true, // necesitamos los hermanos para verificar si están todos completos
-          },
+          include: { steps: true },
         },
       },
     });
 
-    // 2. Verificar si todos los pasos del proceso están COMPLETADOS
     const allStepsCompleted = step.processInstance.steps.every(
       (s) => s.estado === 'COMPLETADO',
     );
 
-    // Registrar en bitácora - subida de archivo
     await this.auditLog.log({
       action: AuditActions.UPLOAD,
       entityType: EntityTypes.FILE,
@@ -82,10 +71,7 @@ export class StepFilesService {
       userId,
     });
 
-    // Nota: Auditoría de COMPLETE removida - no está en whitelist
-
     if (allStepsCompleted) {
-      // 3. Si todo está completo, marcar el proceso como COMPLETADO
       await this.prisma.processInstance.update({
         where: { id: step.processInstance.id },
         data: {
@@ -93,10 +79,7 @@ export class StepFilesService {
           completedAt: new Date(),
         },
       });
-
-      // Nota: Auditoría de COMPLETE removida - no está en whitelist
     }
-    // ---------------------------------
 
     return created;
   }
@@ -126,10 +109,11 @@ export class StepFilesService {
     });
   }
 
-  /**
-   * Obtiene el stream de un archivo desde R2
-   */
-  async getFileStream(stepId: number, fileId: number, userId?: number): Promise<{
+  async getFileStream(
+    stepId: number,
+    fileId: number,
+    userId?: number,
+  ): Promise<{
     stream: Readable;
     fileName: string;
     mimeType: string;
@@ -143,10 +127,8 @@ export class StepFilesService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    // Obtener stream desde R2
     const stream = await this.r2.getStream(file.storageKey);
 
-    // Registrar descarga en bitácora
     await this.auditLog.log({
       action: AuditActions.DOWNLOAD,
       entityType: EntityTypes.FILE,
@@ -164,16 +146,10 @@ export class StepFilesService {
     };
   }
 
-  /**
-   * Obtiene el buffer de un archivo desde R2 (para exportación ZIP)
-   */
   async getFileBuffer(storageKey: string): Promise<Buffer> {
     return this.r2.getBuffer(storageKey);
   }
 
-  /**
-   * Obtiene metadatos de un archivo (sin contenido)
-   */
   async getFile(stepId: number, fileId: number) {
     const file = await this.prisma.stepFile.findFirst({
       where: { id: fileId, stepId },
@@ -195,20 +171,16 @@ export class StepFilesService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    // Primero eliminar de R2
     try {
       await this.r2.delete(file.storageKey);
     } catch (error) {
       console.error(`Error deleting file from R2: ${file.storageKey}`, error);
-      // Continuar con la eliminación del registro aunque falle R2
     }
 
-    // Luego eliminar registro de BD
     await this.prisma.stepFile.delete({
       where: { id: fileId },
     });
 
-    // Registrar en bitácora
     await this.auditLog.log({
       action: AuditActions.DELETE,
       entityType: EntityTypes.FILE,
@@ -218,13 +190,12 @@ export class StepFilesService {
       userId,
     });
 
-    // Verificar si quedan archivos en el paso
     const remainingFiles = await this.prisma.stepFile.count({
       where: { stepId },
     });
 
+    // Revertir estado si no quedan archivos
     if (remainingFiles === 0) {
-      // Revertir paso a PENDIENTE
       await this.prisma.stepInstance.update({
         where: { id: stepId },
         data: {
@@ -233,10 +204,9 @@ export class StepFilesService {
         },
       });
 
-      // Revertir proceso a PENDIENTE si estaba completado
       const step = await this.prisma.stepInstance.findUnique({
         where: { id: stepId },
-        include: { processInstance: true }
+        include: { processInstance: true },
       });
 
       if (step && step.processInstance.estado === 'COMPLETADO') {
@@ -244,17 +214,17 @@ export class StepFilesService {
           where: { id: step.processInstanceId },
           data: {
             estado: 'PENDIENTE',
-            completedAt: null
-          }
+            completedAt: null,
+          },
         });
       }
     }
   }
 
-  /**
-   * Obtiene la URL presigned para visualizar un archivo (solo PDF)
-   */
-  async getPresignedUrl(stepId: number, fileId: number): Promise<{ url: string; fileName: string }> {
+  async getPresignedUrl(
+    stepId: number,
+    fileId: number,
+  ): Promise<{ url: string; fileName: string }> {
     const file = await this.prisma.stepFile.findFirst({
       where: { id: fileId, stepId },
     });
@@ -264,11 +234,6 @@ export class StepFilesService {
     }
 
     const url = await this.r2.getPresignedUrl(file.storageKey);
-
-    return {
-      url,
-      fileName: file.originalName
-    };
+    return { url, fileName: file.originalName };
   }
 }
-

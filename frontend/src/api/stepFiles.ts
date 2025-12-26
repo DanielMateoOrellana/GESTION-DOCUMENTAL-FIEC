@@ -1,4 +1,3 @@
-// frontend/src/api/stepFiles.ts
 import { api } from './http';
 
 export type StepFileSummary = {
@@ -12,13 +11,11 @@ export type StepFileSummary = {
   uploadedById: number | null;
 };
 
-// Lista de archivos de un paso
 export async function listStepFiles(stepId: number): Promise<StepFileSummary[]> {
   const { data } = await api.get<StepFileSummary[]>(`/steps/${stepId}/files`);
   return data;
 }
 
-// Subir archivo a un paso
 export async function uploadStepFile(
   stepId: number,
   file: File,
@@ -29,17 +26,11 @@ export async function uploadStepFile(
   const { data } = await api.post<StepFileSummary>(
     `/steps/${stepId}/files`,
     formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    },
+    { headers: { 'Content-Type': 'multipart/form-data' } },
   );
-
   return data;
 }
 
-// Descargar archivo (devuelve un Blob)
 export async function downloadStepFile(
   stepId: number,
   fileId: number,
@@ -50,7 +41,6 @@ export async function downloadStepFile(
   return response.data as Blob;
 }
 
-// Eliminar archivo
 export async function deleteStepFile(
   stepId: number,
   fileId: number,
@@ -58,14 +48,12 @@ export async function deleteStepFile(
   await api.delete(`/steps/${stepId}/files/${fileId}`);
 }
 
-// Obtener URL presigned para previsualizar archivo (solo PDF)
 export async function getFilePresignedUrl(
   stepId: number,
   fileId: number,
 ): Promise<{ url: string; fileName: string }> {
   const { data } = await api.get<{ url: string; fileName: string }>(
-    `/steps/${stepId}/files/${fileId}/presigned`
+    `/steps/${stepId}/files/${fileId}/presigned`,
   );
   return data;
 }
-

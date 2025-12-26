@@ -21,7 +21,6 @@ export interface AuditLogFilter {
     offset?: number;
 }
 
-// Tipos de acciones comunes
 export const AuditActions = {
     CREATE: 'CREATE',
     UPDATE: 'UPDATE',
@@ -37,7 +36,6 @@ export const AuditActions = {
     DEACTIVATE: 'DEACTIVATE',
 } as const;
 
-// Tipos de entidades
 export const EntityTypes = {
     USER: 'USER',
     PROCESS_CATEGORY: 'PROCESS_CATEGORY',
@@ -55,9 +53,6 @@ export const EntityTypes = {
 export class AuditLogService {
     constructor(private prisma: PrismaService) { }
 
-    /**
-     * Registrar una acción en la bitácora
-     */
     async log(dto: CreateAuditLogDto) {
         try {
             return await this.prisma.auditLog.create({
@@ -72,38 +67,22 @@ export class AuditLogService {
                 },
             });
         } catch (error) {
-            // No lanzamos error para no interrumpir la operación principal
-            console.error('[AuditLog] Error al registrar:', error);
+            console.error('[AuditLog] Error:', error);
             return null;
         }
     }
 
-    /**
-     * Obtener todos los registros de la bitácora con filtros opcionales
-     */
     async findAll(filter: AuditLogFilter = {}) {
         const where: any = {};
 
-        if (filter.action) {
-            where.action = filter.action;
-        }
-
-        if (filter.entityType) {
-            where.entityType = filter.entityType;
-        }
-
-        if (filter.userId) {
-            where.userId = filter.userId;
-        }
+        if (filter.action) where.action = filter.action;
+        if (filter.entityType) where.entityType = filter.entityType;
+        if (filter.userId) where.userId = filter.userId;
 
         if (filter.startDate || filter.endDate) {
             where.createdAt = {};
-            if (filter.startDate) {
-                where.createdAt.gte = filter.startDate;
-            }
-            if (filter.endDate) {
-                where.createdAt.lte = filter.endDate;
-            }
+            if (filter.startDate) where.createdAt.gte = filter.startDate;
+            if (filter.endDate) where.createdAt.lte = filter.endDate;
         }
 
         const [data, total] = await Promise.all([
@@ -111,12 +90,7 @@ export class AuditLogService {
                 where,
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            fullName: true,
-                            email: true,
-                            role: true,
-                        },
+                        select: { id: true, fullName: true, email: true, role: true },
                     },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -134,71 +108,54 @@ export class AuditLogService {
         };
     }
 
-    /**
-     * Obtener un registro específico
-     */
     async findOne(id: number) {
         return this.prisma.auditLog.findUnique({
             where: { id },
             include: {
                 user: {
-                    select: {
-                        id: true,
-                        fullName: true,
-                        email: true,
-                        role: true,
-                    },
+                    select: { id: true, fullName: true, email: true, role: true },
                 },
             },
         });
     }
 
-    /**
-     * Obtener estadísticas de la bitácora
-     */
     async getStats() {
-        const [
-            totalLogs,
-            byAction,
-            byEntityType,
-            recentActivity,
-        ] = await Promise.all([
-            this.prisma.auditLog.count(),
-            this.prisma.auditLog.groupBy({
-                by: ['action'],
-                _count: { action: true },
-                orderBy: { _count: { action: 'desc' } },
-            }),
-            this.prisma.auditLog.groupBy({
-                by: ['entityType'],
-                _count: { entityType: true },
-                orderBy: { _count: { entityType: 'desc' } },
-            }),
-            this.prisma.auditLog.findMany({
-                take: 10,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            fullName: true,
-                        },
+        const [totalLogs, byAction, byEntityType, recentActivity] =
+            await Promise.all([
+                this.prisma.auditLog.count(),
+                this.prisma.auditLog.groupBy({
+                    by: ['action'],
+                    _count: { action: true },
+                    orderBy: { _count: { action: 'desc' } },
+                }),
+                this.prisma.auditLog.groupBy({
+                    by: ['entityType'],
+                    _count: { entityType: true },
+                    orderBy: { _count: { entityType: 'desc' } },
+                }),
+                this.prisma.auditLog.findMany({
+                    take: 10,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        user: { select: { id: true, fullName: true } },
                     },
-                },
-            }),
-        ]);
+                }),
+            ]);
 
         return {
             totalLogs,
-            byAction: byAction.map((a) => ({ action: a.action, count: a._count.action })),
-            byEntityType: byEntityType.map((e) => ({ entityType: e.entityType, count: e._count.entityType })),
+            byAction: byAction.map((a) => ({
+                action: a.action,
+                count: a._count.action,
+            })),
+            byEntityType: byEntityType.map((e) => ({
+                entityType: e.entityType,
+                count: e._count.entityType,
+            })),
             recentActivity,
         };
     }
 
-    /**
-     * Obtener tipos de acciones únicos
-     */
     async getActionTypes() {
         const result = await this.prisma.auditLog.findMany({
             distinct: ['action'],
@@ -207,9 +164,6 @@ export class AuditLogService {
         return result.map((r) => r.action);
     }
 
-    /**
-     * Obtener tipos de entidades únicos
-     */
     async getEntityTypes() {
         const result = await this.prisma.auditLog.findMany({
             distinct: ['entityType'],

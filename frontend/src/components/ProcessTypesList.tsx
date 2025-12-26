@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { User } from '../types';
-import {
-  mockProcessTemplates,
-} from '../data/mockData';
 
 import {
   fetchProcessCategories,
@@ -458,9 +455,7 @@ export function ProcessTypesList({
               </TableHeader>
               <TableBody>
                 {activeTypes.map((type) => {
-                  const templatesCount = mockProcessTemplates.filter(
-                    (t) => t.process_type_id === type.id
-                  ).length;
+                  const templatesCount = (type as any)._count?.templates ?? 0;
 
                   return (
                     <TableRow key={type.id}>

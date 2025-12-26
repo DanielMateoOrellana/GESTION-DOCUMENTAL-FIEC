@@ -15,10 +15,7 @@ export class UsersService {
     async create(createUserDto: CreateUserDto, createdByUserId?: number) {
         const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
         const user = await this.prisma.user.create({
-            data: {
-                ...createUserDto,
-                password: hashedPassword,
-            },
+            data: { ...createUserDto, password: hashedPassword },
             select: {
                 id: true,
                 email: true,
@@ -26,10 +23,9 @@ export class UsersService {
                 role: true,
                 isActive: true,
                 createdAt: true,
-            }
+            },
         });
 
-        // Registrar en bitácora
         await this.auditLog.log({
             action: AuditActions.CREATE,
             entityType: EntityTypes.USER,
@@ -51,9 +47,9 @@ export class UsersService {
                 role: true,
                 isActive: true,
                 createdAt: true,
-                updatedAt: true
+                updatedAt: true,
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
         });
     }
 
@@ -67,8 +63,8 @@ export class UsersService {
                 role: true,
                 isActive: true,
                 createdAt: true,
-                updatedAt: true
-            }
+                updatedAt: true,
+            },
         });
     }
 
@@ -78,7 +74,7 @@ export class UsersService {
             data.password = await bcrypt.hash(data.password, 10);
         }
 
-        const user = await this.prisma.user.update({
+        return this.prisma.user.update({
             where: { id },
             data,
             select: {
@@ -88,21 +84,13 @@ export class UsersService {
                 role: true,
                 isActive: true,
                 createdAt: true,
-                updatedAt: true
-            }
+                updatedAt: true,
+            },
         });
-
-        // Nota: Auditoría de UPDATE removida - no está en whitelist
-
-        return user;
     }
 
     async remove(id: number, deletedByUserId?: number) {
-        const user = await this.findOne(id);
-
-        // Nota: Auditoría de DEACTIVATE removida - no está en whitelist
-
-        // Soft delete / deactivate
+        await this.findOne(id);
         return this.update(id, { isActive: false }, deletedByUserId);
     }
 }

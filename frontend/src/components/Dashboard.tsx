@@ -50,7 +50,6 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
 
-  // Data from API
   const [processes, setProcesses] = useState<ProcessInstance[]>([]);
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
 
@@ -81,21 +80,15 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
   const processData = (procs: ProcessInstance[], types: ProcessType[]) => {
     const newTasks: TaskItem[] = [];
     const now = new Date();
-    // Normalize now to start of day for accurate overdue calc
     now.setHours(0, 0, 0, 0);
 
     procs.forEach(p => {
-      // Ignore closed processes if you want only active ones in the dashboard
-      // if (p.estado === 'COMPLETADO') return;
 
       const pType = types.find(t => t.id === p.processTypeId);
       const responsibleName = p.responsibleUser?.fullName || 'Sin asignar';
       const pTitle = p.title || pType?.name || `Proceso #${p.id}`;
-
-      // Only add Process items
       const due = p.dueAt ? new Date(p.dueAt) : null;
 
-      // Calculate progress from steps
       const steps = p.steps || [];
       const totalSteps = steps.length;
       const completedSteps = steps.filter(s => s.estado === 'COMPLETADO').length;
@@ -106,7 +99,7 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
         type: 'process',
         processId: p.id,
         title: pTitle,
-        processTitle: pTitle, // Redundant but keeps interface consistent
+        processTitle: pTitle,
         processType: pType?.name || 'Desconocido',
         responsible: responsibleName,
         dueDate: due,
@@ -120,7 +113,6 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
       });
     });
 
-    // Sort: Overdue first, then by date, then undefined date last
     newTasks.sort((a, b) => {
       if (a.overdue && !b.overdue) return -1;
       if (!a.overdue && b.overdue) return 1;
@@ -133,27 +125,19 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
   };
 
   const filteredTasks = tasks.filter(task => {
-    // Text Search
     if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
       !task.processTitle.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
 
-    // Status Filter
     if (statusFilter !== 'all') {
       if (statusFilter === 'overdue') return task.overdue;
       if (statusFilter !== task.status) return false;
     }
 
-    // Year Filter
     if (filterYear !== 'all' && task.year?.toString() !== filterYear) {
       return false;
     }
-
-    // Type Filter (Note: task.processType is the name. We need to filter by ID or handle this differently.) 
-    // Actually ProcessListSimple filters by processTypeId. 
-    // Let's check if we have the ID available. We have processId. We can look up the process in `processes` but that is slow inside filter.
-    // Better to add processTypeId to TaskItem.
 
     return true;
   });
@@ -169,10 +153,7 @@ export function Dashboard({ currentUser, onViewChange }: DashboardProps) {
   };
 
   return (
-    // Se usa el mismo padding y espaciado que ProcessListSimple
     <div className="p-6 space-y-6">
-
-      {/* Header idéntico en estructura a ProcessListSimple - Responsive */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1>Tablero de Control</h1>

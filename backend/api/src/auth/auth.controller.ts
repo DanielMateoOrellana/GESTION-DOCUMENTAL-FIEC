@@ -39,18 +39,12 @@ class LoginBodyDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // REGISTRO - Rate limiting estricto para prevenir spam de cuentas
-  // ══════════════════════════════════════════════════════════════════════════
-  // Límite: 5 registros por minuto por IP
-  // Esto previene la creación masiva de cuentas falsas
-  // ══════════════════════════════════════════════════════════════════════════
   @Public()
   @Post('register')
   @Throttle({
-    short: { limit: 3, ttl: 1000 },     // 3 por segundo (muy estricto)
-    medium: { limit: 5, ttl: 60000 },   // 5 por minuto
-    long: { limit: 20, ttl: 900000 },   // 20 en 15 minutos
+    short: { limit: 3, ttl: 1000 },
+    medium: { limit: 5, ttl: 60000 },
+    long: { limit: 20, ttl: 900000 },
   })
   register(@Body() body: RegisterBodyDto) {
     const dto: RegisterDto = {
@@ -62,19 +56,12 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // LOGIN - Rate limiting MUY estricto para prevenir fuerza bruta
-  // ══════════════════════════════════════════════════════════════════════════
-  // Límite: 5 intentos de login por minuto por IP
-  // Esto hace prácticamente imposible un ataque de fuerza bruta
-  // 5 intentos/min = 300 intentos/hora = muy poco para romper contraseñas
-  // ══════════════════════════════════════════════════════════════════════════
   @Public()
   @Post('login')
   @Throttle({
-    short: { limit: 3, ttl: 1000 },     // 3 por segundo
-    medium: { limit: 5, ttl: 60000 },   // 5 por minuto
-    long: { limit: 30, ttl: 900000 },   // 30 en 15 minutos
+    short: { limit: 3, ttl: 1000 },
+    medium: { limit: 5, ttl: 60000 },
+    long: { limit: 30, ttl: 900000 },
   })
   login(@Body() body: LoginBodyDto) {
     const dto: LoginDto = {
@@ -86,6 +73,6 @@ export class AuthController {
 
   @Get('me')
   me(@Req() req: any) {
-    return req.user; // viene del jwt.strategy
+    return req.user;
   }
 }

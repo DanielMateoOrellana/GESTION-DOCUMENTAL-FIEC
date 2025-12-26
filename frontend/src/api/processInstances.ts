@@ -1,6 +1,5 @@
 import { api } from './http';
 
-// Enums igualitos a tu backend (están en español)
 export type EstadoProceso = 'PENDIENTE' | 'COMPLETADO';
 export type EstadoPaso = 'PENDIENTE' | 'COMPLETADO';
 
@@ -79,9 +78,6 @@ export async function fetchProcessInstances(): Promise<ProcessInstance[]> {
   return data;
 }
 
-/**
- * Descarga el expediente completo como archivo ZIP
- */
 export async function downloadProcessZip(processId: number): Promise<Blob> {
   const response = await api.get(`/process-instances/${processId}/zip`, {
     responseType: 'blob',
@@ -89,9 +85,6 @@ export async function downloadProcessZip(processId: number): Promise<Blob> {
   return response.data;
 }
 
-/**
- * Resultado de la importación de proceso desde ZIP
- */
 export type ImportProcessResult = {
   process: ProcessInstance;
   stats: {
@@ -101,9 +94,6 @@ export type ImportProcessResult = {
   };
 };
 
-/**
- * Importa un proceso desde un archivo ZIP
- */
 export async function importProcessZip(
   file: File,
   processTypeId: number,
@@ -121,46 +111,30 @@ export async function importProcessZip(
   const { data } = await api.post<ImportProcessResult>(
     '/process-instances/import-zip',
     formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    },
+    { headers: { 'Content-Type': 'multipart/form-data' } },
   );
   return data;
 }
 
-/**
- * Exporta múltiples expedientes en un único archivo ZIP
- */
 export async function exportBulkProcesses(ids: number[]): Promise<Blob> {
   const response = await api.post(
     '/process-instances/bulk-export-zip',
     { ids },
-    {
-      responseType: 'blob',
-    },
+    { responseType: 'blob' },
   );
   return response.data;
 }
 
-/**
- * Elimina una instancia de proceso y todos sus archivos
- */
 export async function deleteProcessInstance(id: number): Promise<void> {
   await api.delete(`/process-instances/${id}`);
 }
 
-/**
- * Agrega un paso dinámico a una instancia de proceso.
- * También agrega el paso a la plantilla asociada.
- */
-export async function addStepToProcess(processId: number, stepName: string): Promise<{
-  templateStep: any;
-  stepInstance: any;
-  message: string;
-}> {
-  const { data } = await api.post(`/process-instances/${processId}/add-step`, { name: stepName });
+export async function addStepToProcess(
+  processId: number,
+  stepName: string,
+): Promise<{ templateStep: any; stepInstance: any; message: string }> {
+  const { data } = await api.post(`/process-instances/${processId}/add-step`, {
+    name: stepName,
+  });
   return data;
 }
-

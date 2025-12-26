@@ -14,7 +14,6 @@ export class ProcessInstancesService {
   ) { }
 
   async create(dto: CreateProcessInstanceDto, userId: number) {
-    // 1) Buscar la plantilla con sus pasos
     const template = await this.prisma.processTemplate.findUnique({
       where: { id: dto.templateId },
       include: { steps: { orderBy: { order: 'asc' } } },
@@ -24,14 +23,12 @@ export class ProcessInstancesService {
       throw new NotFoundException(`La plantilla #${dto.templateId} no existe`);
     }
 
-    // 2) Validar que la plantilla pertenezca al tipo de proceso enviado
     if (template.processTypeId !== dto.processTypeId) {
       throw new NotFoundException(
         `La plantilla #${dto.templateId} no pertenece al tipo de proceso #${dto.processTypeId}`,
       );
     }
 
-    // 3) Crear la instancia de proceso + sus pasos
     const instance = await this.prisma.processInstance.create({
       data: {
         title: dto.title,
@@ -39,8 +36,8 @@ export class ProcessInstancesService {
         processTypeId: dto.processTypeId,
         templateId: dto.templateId,
         comment: dto.comment ?? null,
-        createdById: userId, // Quién creó el proceso
-        responsibleUserId: userId, // Responsable inicial = creador
+        createdById: userId,
+        responsibleUserId: userId,
         year: dto.year ?? null,
         month: dto.month ?? null,
         dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
@@ -65,7 +62,6 @@ export class ProcessInstancesService {
       },
     });
 
-    // Registrar en bitácora
     await this.auditLog.log({
       action: AuditActions.CREATE,
       entityType: EntityTypes.PROCESS_INSTANCE,
@@ -83,13 +79,7 @@ export class ProcessInstancesService {
     return instance;
   }
 
-  /**
-   * Obtiene todos los procesos.
-   * - Admin: ve todos los procesos
-   * - Otros roles: solo ven procesos donde son creador o responsable
-   */
   findAll(userId: number, userRole: UserRole) {
-    // Admin tiene visión global
     const whereCondition = userRole === UserRole.ADMINISTRADOR
       ? {}
       : {
@@ -113,11 +103,6 @@ export class ProcessInstancesService {
     });
   }
 
-  /**
-   * Obtiene un proceso por ID.
-   * - Admin: puede ver cualquier proceso
-   * - Otros roles: solo si son creador o responsable
-   */
   async findOne(id: number, userId?: number, userRole?: UserRole) {
     const instance = await this.prisma.processInstance.findUnique({
       where: { id },
@@ -142,7 +127,6 @@ export class ProcessInstancesService {
       );
     }
 
-    // Verificar acceso si se proporciona contexto de usuario
     if (userId && userRole && userRole !== UserRole.ADMINISTRADOR) {
       const hasAccess = instance.createdById === userId || instance.responsibleUserId === userId;
       if (!hasAccess) {
@@ -153,11 +137,7 @@ export class ProcessInstancesService {
     return instance;
   }
 
-  /**
-   * Elimina una instancia de proceso y todos sus archivos de R2
-   */
   async remove(id: number, userId?: number) {
-    // Obtener el proceso con todos sus archivos
     const instance = await this.prisma.processInstance.findUnique({
       where: { id },
       include: {

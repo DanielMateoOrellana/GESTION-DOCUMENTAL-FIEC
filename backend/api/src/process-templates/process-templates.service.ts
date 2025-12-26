@@ -12,7 +12,7 @@ export class ProcessTemplatesService {
   ) { }
 
   async create(dto: CreateProcessTemplateDto, userId?: number) {
-    const template = await this.prisma.processTemplate.create({
+    return this.prisma.processTemplate.create({
       data: {
         name: dto.name,
         description: dto.description,
@@ -34,36 +34,18 @@ export class ProcessTemplatesService {
             : undefined,
       },
       include: {
-        processType: {
-          include: {
-            category: true,
-          },
-        },
-        createdBy: {
-          select: { id: true, fullName: true },
-        },
-        steps: {
-          orderBy: { order: 'asc' },
-        },
+        processType: { include: { category: true } },
+        createdBy: { select: { id: true, fullName: true } },
+        steps: { orderBy: { order: 'asc' } },
       },
     });
-
-    // Nota: Auditoría de CREATE removida - solo DELETE está en whitelist
-
-    return template;
   }
 
   findAll() {
     return this.prisma.processTemplate.findMany({
       include: {
-        processType: {
-          include: {
-            category: true,
-          },
-        },
-        steps: {
-          orderBy: { order: 'asc' },
-        },
+        processType: { include: { category: true } },
+        steps: { orderBy: { order: 'asc' } },
       },
       orderBy: { id: 'asc' },
     });
@@ -73,28 +55,19 @@ export class ProcessTemplatesService {
     const template = await this.prisma.processTemplate.findUnique({
       where: { id },
       include: {
-        processType: {
-          include: {
-            category: true,
-          },
-        },
-        steps: {
-          orderBy: { order: 'asc' },
-        },
+        processType: { include: { category: true } },
+        steps: { orderBy: { order: 'asc' } },
       },
     });
 
     if (!template) {
       throw new NotFoundException(`ProcessTemplate #${id} not found`);
     }
-
     return template;
   }
 
   async update(id: number, dto: UpdateProcessTemplateDto, userId?: number) {
-    // Transaction to update steps safely
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Update template details
+    return this.prisma.$transaction(async (tx) => {
       await tx.processTemplate.update({
         where: { id },
         data: {
@@ -105,7 +78,6 @@ export class ProcessTemplatesService {
         },
       });
 
-      // 2. Handle steps if provided
       if (dto.steps && dto.steps.length > 0) {
         const existingSteps = await tx.processTemplateStep.findMany({
           where: { templateId: id },
@@ -116,7 +88,6 @@ export class ProcessTemplatesService {
           const stepDto = dto.steps[i];
 
           if (i < existingSteps.length) {
-            // Update existing step
             await tx.processTemplateStep.update({
               where: { id: existingSteps[i].id },
               data: {
@@ -127,7 +98,6 @@ export class ProcessTemplatesService {
               },
             });
           } else {
-            // Create new step if user added one
             await tx.processTemplateStep.create({
               data: {
                 templateId: id,
@@ -135,52 +105,41 @@ export class ProcessTemplatesService {
                 description: stepDto.description,
                 order: stepDto.order,
                 isMandatory: stepDto.isMandatory ?? true,
-              }
+              },
             });
           }
         }
       }
 
-      // Re-fetch to return full object
       return tx.processTemplate.findUnique({
         where: { id },
         include: {
           processType: { include: { category: true } },
           steps: { orderBy: { order: 'asc' } },
-        }
+        },
       });
     });
-
-    // Nota: Auditoría de UPDATE removida - solo DELETE está en whitelist
-
-    return result;
   }
 
   async remove(id: number, userId?: number) {
     const template = await this.findOne(id);
 
-    // Verificar si tiene instancias de proceso asociadas
     const instancesCount = await this.prisma.processInstance.count({
       where: { templateId: id },
     });
 
     if (instancesCount > 0) {
       throw new ConflictException(
-        `No se puede eliminar la plantilla "${template.name}" porque tiene ${instancesCount} proceso(s) asociado(s). Elimine primero los procesos.`
+        `No se puede eliminar "${template.name}" porque tiene ${instancesCount} proceso(s) asociado(s).`,
       );
     }
 
-    // Eliminar pasos de la plantilla primero
     await this.prisma.processTemplateStep.deleteMany({
       where: { templateId: id },
     });
 
-    // Luego eliminar la plantilla
-    await this.prisma.processTemplate.delete({
-      where: { id },
-    });
+    await this.prisma.processTemplate.delete({ where: { id } });
 
-    // Registrar en bitácora
     await this.auditLog.log({
       action: AuditActions.DELETE,
       entityType: EntityTypes.PROCESS_TEMPLATE,
@@ -192,4 +151,3 @@ export class ProcessTemplatesService {
     return template;
   }
 }
-

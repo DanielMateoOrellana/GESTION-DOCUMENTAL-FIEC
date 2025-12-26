@@ -4,7 +4,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription
+    DialogDescription,
 } from './ui/dialog';
 import { Loader2 } from 'lucide-react';
 
@@ -33,8 +33,6 @@ export function FileViewerModal({
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent
-                // USAMOS ESTILOS INLINE: Esto tiene la máxima prioridad en CSS.
-                // Forzamos 95% de ancho y 90% de alto sin importar qué diga Shadcn.
                 style={{
                     maxWidth: '95vw',
                     width: '95vw',
@@ -43,11 +41,10 @@ export function FileViewerModal({
                     padding: 0,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 0
+                    gap: 0,
                 }}
-                className="bg-white sm:max-w-none" // Clases de respaldo
+                className="bg-white sm:max-w-none"
             >
-                {/* Header */}
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
                     <DialogTitle className="text-lg font-semibold truncate pr-10">
                         {fileName}
@@ -57,13 +54,14 @@ export function FileViewerModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Contenido (Iframe) */}
                 <div className="flex-1 relative w-full min-h-0 bg-slate-100 overflow-hidden">
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
                             <div className="flex flex-col items-center gap-3">
                                 <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                                <span className="text-sm font-medium text-slate-600">Cargando documento...</span>
+                                <span className="text-sm font-medium text-slate-600">
+                                    Cargando documento...
+                                </span>
                             </div>
                         </div>
                     )}

@@ -25,16 +25,12 @@ import type { Response } from 'express';
 export class StepFilesController {
   constructor(private readonly stepFilesService: StepFilesService) { }
 
-  /**
-   * Subir archivo a un paso.
-   * LECTOR no puede subir archivos.
-   */
   @Post(':stepId/files')
   @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+      limits: { fileSize: 50 * 1024 * 1024 },
     }),
   )
   async uploadFile(
@@ -43,12 +39,9 @@ export class StepFilesController {
     @Req() req: any,
   ) {
     if (!file) {
-      throw new BadRequestException('Se requiere un archivo (campo "file")');
+      throw new BadRequestException('Se requiere un archivo');
     }
-
-    const userId = req.user?.id;
-
-    return this.stepFilesService.upload(stepId, file, userId);
+    return this.stepFilesService.upload(stepId, file, req.user?.id);
   }
 
   @Get(':stepId/files')
@@ -56,9 +49,6 @@ export class StepFilesController {
     return this.stepFilesService.listByStep(stepId);
   }
 
-  /**
-   * Obtiene URL presigned para previsualizar un archivo PDF
-   */
   @Get(':stepId/files/:fileId/presigned')
   async getPresignedUrl(
     @Param('stepId', ParseIntPipe) stepId: number,
@@ -74,28 +64,18 @@ export class StepFilesController {
     @Res() res: Response,
     @Req() req: any,
   ) {
-    const userId = req.user?.id;
-
-    // Obtener stream desde R2
     const { stream, fileName, mimeType, sizeBytes } =
-      await this.stepFilesService.getFileStream(stepId, fileId, userId);
+      await this.stepFilesService.getFileStream(stepId, fileId, req.user?.id);
 
-    // Configurar headers
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Length', sizeBytes);
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${encodeURIComponent(fileName)}"`,
     );
-
-    // Pipe el stream directamente a la respuesta
     stream.pipe(res);
   }
 
-  /**
-   * Eliminar archivo de un paso.
-   * LECTOR no puede eliminar archivos.
-   */
   @Delete(':stepId/files/:fileId')
   @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE)
   async deleteFile(
@@ -103,9 +83,7 @@ export class StepFilesController {
     @Param('fileId', ParseIntPipe) fileId: number,
     @Req() req: any,
   ) {
-    const userId = req.user?.id;
-    await this.stepFilesService.deleteFile(stepId, fileId, userId);
+    await this.stepFilesService.deleteFile(stepId, fileId, req.user?.id);
     return { success: true };
   }
 }
-

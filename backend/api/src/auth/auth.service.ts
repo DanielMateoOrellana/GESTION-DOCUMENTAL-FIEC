@@ -13,7 +13,7 @@ export interface RegisterDto {
   email: string;
   password: string;
   fullName: string;
-  role?: UserRole; // ADMINISTRADOR | GESTOR | LECTOR | AYUDANTE
+  role?: UserRole;
 }
 
 export interface LoginDto {
@@ -49,14 +49,13 @@ export class AuthService {
       },
     });
 
-    // Registrar en bitácora
     await this.auditLog.log({
       action: AuditActions.CREATE,
       entityType: EntityTypes.USER,
       entityId: user.id,
       description: `Usuario "${user.fullName}" registrado`,
       details: { email: user.email, role: user.role },
-      userId: user.id, // El usuario mismo se registró
+      userId: user.id,
     });
 
     const { password, ...safeUser } = user;
@@ -73,7 +72,6 @@ export class AuthService {
     }
 
     const ok = await bcrypt.compare(password, user.password);
-
     if (!ok) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -92,8 +90,6 @@ export class AuthService {
     };
 
     const token = await this.jwtService.signAsync(payload);
-
-    // Nota: Auditoría de LOGIN removida - no está en whitelist
 
     return {
       access_token: token,
