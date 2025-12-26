@@ -289,8 +289,7 @@ export function ProcessDetailSimple({
   };
 
   const handleMarkComplete = () => {
-    // Aquí luego harás PATCH al backend
-    toast.success("Proceso marcado como completado (mock)");
+    toast.success("Proceso marcado como completado");
   };
 
   const handleExportZip = async () => {

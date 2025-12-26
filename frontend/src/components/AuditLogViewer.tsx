@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { User } from "../types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Button } from "./ui/button";
@@ -155,9 +157,63 @@ export function AuditLogViewer({ currentUser }: AuditLogViewerProps) {
     setPage(1);
   };
 
-  const handleExportCSV = () => {
-    toast.success(`Exportando ${logs.length} registros a CSV`);
-    // Aquí iría la lógica real de exportación
+  const handleExportCSV = async () => {
+    if (logs.length === 0) {
+      toast.error("No hay registros para exportar");
+      return;
+    }
+
+    try {
+      const headers = ["Fecha", "Usuario", "Acción", "Entidad", "ID Entidad", "Descripción"];
+
+      const escapeCSV = (value: string | null | undefined): string => {
+        if (value == null) return "";
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = logs.map((log) => {
+        const fecha = format(new Date(log.createdAt), "dd/MM/yyyy HH:mm:ss", { locale: es });
+        const usuario = log.user?.fullName || "Sistema";
+        const accion = actionLabels[log.action] || log.action;
+        const entidad = entityTypeLabels[log.entityType] || log.entityType;
+        const entityId = log.entityId?.toString() || "";
+        const descripcion = log.description;
+
+        return [
+          escapeCSV(fecha),
+          escapeCSV(usuario),
+          escapeCSV(accion),
+          escapeCSV(entidad),
+          escapeCSV(entityId),
+          escapeCSV(descripcion),
+        ].join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+
+      const fechaActual = format(new Date(), "yyyy-MM-dd", { locale: es });
+      const fileName = `bitacora_${fechaActual}.csv`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Se exportaron ${logs.length} registros a ${fileName}`);
+    } catch (error) {
+      console.error("Error exportando CSV:", error);
+      toast.error("Error al exportar los registros");
+    }
   };
 
   const totalPages = Math.ceil(total / limit);
