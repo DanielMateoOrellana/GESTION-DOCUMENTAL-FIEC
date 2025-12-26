@@ -1,6 +1,7 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
@@ -8,6 +9,10 @@ async function bootstrap() {
 
   // Crear la aplicación con tipo Express explícito para acceder a métodos específicos
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Helmet para seguridad
+  app.use(helmet());
+  logger.log('Helmet configurado');
 
   // ══════════════════════════════════════════════════════════════════════════
   // CONFIGURACIÓN DE PROXY/LOAD BALANCER (CRÍTICO PARA RENDER)
