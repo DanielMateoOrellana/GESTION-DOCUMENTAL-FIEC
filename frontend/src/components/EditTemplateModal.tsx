@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Plus, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
@@ -53,6 +53,7 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
     const [templateDescription, setTemplateDescription] = useState('');
     const [processTypeId, setProcessTypeId] = useState('');
     const [isActive, setIsActive] = useState(true);
+    const [isLocked, setIsLocked] = useState(false);
     const [steps, setSteps] = useState<TemplateStep[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -92,6 +93,7 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
                 setTemplateDescription(tpl.description || '');
                 setProcessTypeId(tpl.processTypeId.toString());
                 setIsActive(tpl.isActive);
+                setIsLocked(tpl.isLocked ?? false);
 
                 if (tpl.steps && tpl.steps.length > 0) {
                     const mappedSteps: TemplateStep[] = tpl.steps.map(s => ({
@@ -227,6 +229,7 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
             description: templateDescription,
             processTypeId: parseInt(processTypeId, 10),
             isActive: isActive,
+            isLocked: isLocked,
             steps: stepsPayload, // Sending steps to replace/update them. Backend must support this.
         };
 
@@ -356,6 +359,18 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
                                         onCheckedChange={(c: boolean | "indeterminate") => setIsActive(!!c)}
                                     />
                                     <Label htmlFor="isActive">Plantilla Activa</Label>
+                                </div>
+
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id="isLocked"
+                                        checked={isLocked}
+                                        onCheckedChange={(c: boolean | "indeterminate") => setIsLocked(!!c)}
+                                    />
+                                    <Label htmlFor="isLocked" className="cursor-pointer flex items-center gap-2">
+                                        <Lock className="w-4 h-4" />
+                                        Bloquear plantilla (solo admins pueden editar)
+                                    </Label>
                                 </div>
 
                                 {/* Vista previa */}

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
@@ -39,6 +39,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
   const [steps, setSteps] = useState<TemplateStep[]>([
     { id: '1', title: '', description: '', required: true, ord: 1 },
   ]);
+  const [isLocked, setIsLocked] = useState(false);
 
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
@@ -157,6 +158,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
       description: templateDescription,
       processTypeId: parseInt(processTypeId, 10),
       isActive: true,
+      isLocked: isLocked,
       steps: stepsPayload,
     };
 
@@ -179,6 +181,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
     setTemplateName('');
     setTemplateDescription('');
     setProcessTypeId('');
+    setIsLocked(false);
     setSteps([{ id: '1', title: '', description: '', required: true, ord: 1 }]);
     onClose();
   };
@@ -271,6 +274,19 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                 </Select>
               </div>
 
+              {/* Checkbox de bloqueo */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isLocked"
+                  checked={isLocked}
+                  onCheckedChange={(checked: boolean) => setIsLocked(Boolean(checked))}
+                />
+                <Label htmlFor="isLocked" className="cursor-pointer flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Bloquear plantilla (solo admins pueden editar)
+                </Label>
+              </div>
+
               {/* Vista previa */}
               {templateName && processTypeId && (
                 <Card className="bg-secondary/50">
@@ -322,7 +338,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
                 </Button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {steps.map((step, index) => (
                   <Card key={step.id}>
                     <CardContent className="pt-4">

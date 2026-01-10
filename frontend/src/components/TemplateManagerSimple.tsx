@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Plus, Edit, FileText, AlertTriangle, Filter } from 'lucide-react';
+import { Plus, Edit, FileText, AlertTriangle, Filter, Lock } from 'lucide-react';
 import type { User } from '../types';
 import { toast } from 'sonner';
 import { CreateTemplateModal } from './CreateTemplateModal';
@@ -286,7 +286,16 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
                         />
                       </TableCell>
 
-                      <TableCell className="font-medium">{template.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="flex items-center gap-2">
+                          {template.name}
+                          {template.isLocked && (
+                            <span title="Plantilla bloqueada">
+                              <Lock className="w-4 h-4 text-amber-500" />
+                            </span>
+                          )}
+                        </span>
+                      </TableCell>
 
                       <TableCell className="max-w-md truncate">
                         <span title={template.description}>

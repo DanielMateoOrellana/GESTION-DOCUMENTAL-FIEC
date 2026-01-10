@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessTemplateDto } from './dto/create-process-template.dto';
 import { UpdateProcessTemplateDto } from './dto/update-process-template.dto';
@@ -17,6 +17,7 @@ export class ProcessTemplatesService {
         name: dto.name,
         description: dto.description,
         isActive: dto.isActive ?? true,
+        isLocked: dto.isLocked ?? false,
         processTypeId: dto.processTypeId,
         createdById: userId,
         steps:
@@ -66,7 +67,13 @@ export class ProcessTemplatesService {
     return template;
   }
 
-  async update(id: number, dto: UpdateProcessTemplateDto, userId?: number) {
+  async update(id: number, dto: UpdateProcessTemplateDto, userId?: number, userRole?: string) {
+    // Check if template is locked and user is not ADMIN
+    const template = await this.findOne(id);
+    if (template.isLocked && userRole !== 'ADMINISTRADOR') {
+      throw new ForbiddenException('Esta plantilla está bloqueada y solo puede ser editada por administradores.');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await tx.processTemplate.update({
         where: { id },
@@ -74,6 +81,7 @@ export class ProcessTemplatesService {
           name: dto.name,
           description: dto.description,
           isActive: dto.isActive,
+          isLocked: dto.isLocked,
           processTypeId: dto.processTypeId,
         },
       });
@@ -121,8 +129,13 @@ export class ProcessTemplatesService {
     });
   }
 
-  async remove(id: number, userId?: number) {
+  async remove(id: number, userId?: number, userRole?: string) {
     const template = await this.findOne(id);
+
+    // Check if template is locked and user is not ADMIN
+    if (template.isLocked && userRole !== 'ADMINISTRADOR') {
+      throw new ForbiddenException('Esta plantilla está bloqueada y solo puede ser eliminada por administradores.');
+    }
 
     const instancesCount = await this.prisma.processInstance.count({
       where: { templateId: id },

@@ -26,6 +26,10 @@ export class CreateProcessTemplateDto {
   isActive?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isLocked?: boolean;
+
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => TemplateStepInput)
   steps?: TemplateStepInput[];

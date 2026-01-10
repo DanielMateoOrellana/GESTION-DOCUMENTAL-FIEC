@@ -19,6 +19,7 @@ export type ProcessTemplate = {
   name: string;
   description: string;
   isActive: boolean;
+  isLocked: boolean;
   processTypeId: number;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +43,7 @@ export type CreateProcessTemplateInput = {
   description: string;
   processTypeId: number;
   isActive?: boolean;
+  isLocked?: boolean;
   steps?: CreateTemplateStepInput[];
 };
 

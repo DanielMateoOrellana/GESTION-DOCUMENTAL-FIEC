@@ -40,12 +40,14 @@ export class ProcessTemplatesController {
     @Req() req: any,
   ) {
     const userId = req.user?.id;
-    return this.service.update(id, dto, userId);
+    const userRole = req.user?.role;
+    return this.service.update(id, dto, userId, userRole);
   }
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     const userId = req.user?.id;
-    return this.service.remove(id, userId);
+    const userRole = req.user?.role;
+    return this.service.remove(id, userId, userRole);
   }
 }
