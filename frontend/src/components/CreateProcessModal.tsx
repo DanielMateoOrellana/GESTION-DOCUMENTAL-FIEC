@@ -1,5 +1,5 @@
 // frontend/src/components/CreateProcessModal.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { User } from "../types";
 import { toast } from "sonner";
-import { FileText, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
+import { FileText, CheckCircle, AlertTriangle, Calendar, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 
 import type { ProcessType } from "../api/processTypes";
@@ -38,6 +38,7 @@ import {
 import { FormField } from "./ui/form-field";
 import { LoadingSpinner } from "./ui/loading-spinner"; // Removed unused TableSkeleton
 import { cn } from "./ui/utils";
+import { fetchUsers, type User as ApiUser } from "../api/users";
 
 interface CreateProcessModalProps {
   open: boolean;
@@ -77,30 +78,36 @@ export function CreateProcessModal({
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const [types, allTemplates] = await Promise.all([
-          fetchProcessTypes(),
-          fetchProcessTemplates(),
-        ]);
-        setProcessTypes(types);
-        setTemplates(allTemplates);
-      } catch (error) {
-        console.error(error);
-        setLoadError("No se pudieron cargar los datos.");
-        toast.error("Error al cargar datos iniciales");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Usuarios para asignar responsable
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [selectedResponsibleId, setSelectedResponsibleId] = useState<string>("");
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const [types, allTemplates, allUsers] = await Promise.all([
+        fetchProcessTypes(),
+        fetchProcessTemplates(),
+        fetchUsers(),
+      ]);
+      setProcessTypes(types);
+      setTemplates(allTemplates);
+      setUsers(allUsers); // Mostrar todos los usuarios del sistema
+    } catch (error) {
+      console.error(error);
+      setLoadError("No se pudieron cargar los datos.");
+      toast.error("Error al cargar datos iniciales");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (open) {
       loadData();
     }
-  }, [open]);
+  }, [open, loadData]);
 
   const availableTemplates = templates.filter(
     (t) =>
@@ -145,6 +152,7 @@ export function CreateProcessModal({
         month: Number(month),
         comment: undefined,
         dueAt: dueAt ? dueAt.toISOString() : undefined,
+        responsibleUserId: selectedResponsibleId ? Number(selectedResponsibleId) : undefined,
       };
 
       const newInstance = await createProcessInstance(payload);
@@ -176,6 +184,7 @@ export function CreateProcessModal({
     setMonth((new Date().getMonth() + 1).toString());
     setDueAt(undefined);
     setShowObsoleteTemplates(false);
+    setSelectedResponsibleId("");
     setFormErrors({});
     setTouched({});
   };
@@ -240,7 +249,7 @@ export function CreateProcessModal({
               >
                 <Select
                   value={selectedProcessTypeId}
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setSelectedProcessTypeId(value);
                     setSelectedTemplateId("");
                     setFormErrors(prev => ({ ...prev, processType: undefined }));
@@ -281,7 +290,7 @@ export function CreateProcessModal({
                   >
                     <Select
                       value={selectedTemplateId}
-                      onValueChange={(value) => {
+                      onValueChange={(value: string) => {
                         setSelectedTemplateId(value);
                         setFormErrors(prev => ({ ...prev, template: undefined }));
                       }}
@@ -352,6 +361,29 @@ export function CreateProcessModal({
                     min={format(new Date(), "yyyy-MM-dd")}
                   />
                 </div>
+              </FormField>
+
+              {/* Selector de Responsable */}
+              <FormField label="Responsable" htmlFor="responsible">
+                <Select
+                  value={selectedResponsibleId || "self"}
+                  onValueChange={(val: string) => setSelectedResponsibleId(val === "self" ? "" : val)}
+                >
+                  <SelectTrigger id="responsible">
+                    <SelectValue placeholder="Yo mismo (por defecto)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="self">Yo mismo ({currentUser.fullName})</SelectItem>
+                    {users.filter(u => u.id !== currentUser.id).map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        <span className="flex items-center gap-2">
+                          <UserPlus className="w-3 h-3" />
+                          {user.fullName}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
             </div>
 

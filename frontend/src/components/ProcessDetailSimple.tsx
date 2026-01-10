@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   Plus,
   Eye,
+  UserPlus,
 } from "lucide-react";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import {
@@ -51,6 +52,7 @@ import {
   type StepFileSummary,
 } from "../api/stepFiles";
 import { FileViewerModal } from "./FileViewerModal";
+import { AssignResponsibleModal } from "./AssignmentModals";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,6 +115,9 @@ export function ProcessDetailSimple({
   const [pdfViewerUrl, setPdfViewerUrl] = useState('');
   const [pdfViewerFileName, setPdfViewerFileName] = useState('');
   const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Assignment modals state
+  const [assignResponsibleOpen, setAssignResponsibleOpen] = useState(false);
 
   const handleAddStep = async () => {
     if (!addStepName.trim() || !process) return;
@@ -447,6 +452,15 @@ export function ProcessDetailSimple({
               <div className="flex items-center gap-2 mt-1">
                 <UserIcon className="w-4 h-4" />
                 <span>{responsibleName}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setAssignResponsibleOpen(true)}
+                >
+                  <UserPlus className="w-3 h-3 mr-1" />
+                  Delegar
+                </Button>
               </div>
             </div>
             <div>
@@ -728,6 +742,16 @@ export function ProcessDetailSimple({
         onClose={() => setPdfViewerOpen(false)}
         fileUrl={pdfViewerUrl}
         fileName={pdfViewerFileName}
+      />
+
+      {/* Modal para delegar proceso */}
+      <AssignResponsibleModal
+        open={assignResponsibleOpen}
+        onClose={() => setAssignResponsibleOpen(false)}
+        processId={processId}
+        processTitle={process.title || `Proceso #${process.id}`}
+        currentResponsible={process.responsibleUser}
+        onAssigned={() => load()}
       />
     </div>
   );

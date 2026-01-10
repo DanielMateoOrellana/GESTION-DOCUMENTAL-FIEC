@@ -5,7 +5,9 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
+  Query,
   Req,
   Res,
   UploadedFile,
@@ -88,8 +90,8 @@ export class ProcessInstancesController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.service.findAll(req.user?.id, req.user?.role);
+  findAll(@Req() req: any, @Query('search') search?: string) {
+    return this.service.findAll(req.user?.id, req.user?.role, search);
   }
 
   @Get(':id')
@@ -136,5 +138,37 @@ export class ProcessInstancesController {
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     await this.service.findOne(id, req.user?.id, req.user?.role);
     return this.service.remove(id, req.user?.id);
+  }
+
+  // Delegar un paso a un usuario específico
+  @Patch('steps/:stepId/assign')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR)
+  async assignStep(
+    @Param('stepId', ParseIntPipe) stepId: number,
+    @Body('assignedToId', ParseIntPipe) assignedToId: number,
+    @Req() req: any,
+  ) {
+    return this.service.assignStep(stepId, assignedToId, req.user?.id);
+  }
+
+  // Remover delegación de un paso
+  @Patch('steps/:stepId/unassign')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR)
+  async unassignStep(
+    @Param('stepId', ParseIntPipe) stepId: number,
+    @Req() req: any,
+  ) {
+    return this.service.unassignStep(stepId, req.user?.id);
+  }
+
+  // Actualizar responsable de un proceso
+  @Patch(':id/responsible')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR)
+  async updateResponsible(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('responsibleUserId') responsibleUserId: number | null,
+    @Req() req: any,
+  ) {
+    return this.service.updateResponsible(id, responsibleUserId, req.user?.id);
   }
 }

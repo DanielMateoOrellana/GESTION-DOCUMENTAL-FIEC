@@ -28,4 +28,8 @@ export class CreateProcessInstanceDto {
   @IsOptional()
   @IsISO8601()
   dueAt?: string;
+
+  @IsOptional()
+  @IsInt()
+  responsibleUserId?: number;
 }

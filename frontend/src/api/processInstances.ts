@@ -14,6 +14,12 @@ export type StepInstance = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  assignedToId?: number | null;
+  assignedTo?: {
+    id: number;
+    fullName: string;
+    email: string;
+  } | null;
 };
 
 export type ProcessInstance = {
@@ -64,6 +70,7 @@ export type CreateProcessInstanceInput = {
   year?: number;
   month?: number;
   dueAt?: string;
+  responsibleUserId?: number;
 };
 
 export async function createProcessInstance(
@@ -73,8 +80,9 @@ export async function createProcessInstance(
   return data;
 }
 
-export async function fetchProcessInstances(): Promise<ProcessInstance[]> {
-  const { data } = await api.get<ProcessInstance[]>('/process-instances');
+export async function fetchProcessInstances(search?: string): Promise<ProcessInstance[]> {
+  const params = search ? { search } : {};
+  const { data } = await api.get<ProcessInstance[]>('/process-instances', { params });
   return data;
 }
 
@@ -138,3 +146,36 @@ export async function addStepToProcess(
   });
   return data;
 }
+
+// Delegar un paso a un usuario
+export async function assignStep(
+  stepId: number,
+  assignedToId: number,
+): Promise<StepInstance> {
+  const { data } = await api.patch<StepInstance>(
+    `/process-instances/steps/${stepId}/assign`,
+    { assignedToId },
+  );
+  return data;
+}
+
+// Remover delegación de un paso
+export async function unassignStep(stepId: number): Promise<StepInstance> {
+  const { data } = await api.patch<StepInstance>(
+    `/process-instances/steps/${stepId}/unassign`,
+  );
+  return data;
+}
+
+// Actualizar responsable del proceso
+export async function updateProcessResponsible(
+  processId: number,
+  responsibleUserId: number | null,
+): Promise<ProcessInstance> {
+  const { data } = await api.patch<ProcessInstance>(
+    `/process-instances/${processId}/responsible`,
+    { responsibleUserId },
+  );
+  return data;
+}
+

@@ -37,7 +37,7 @@ export class ProcessInstancesService {
         templateId: dto.templateId,
         comment: dto.comment ?? null,
         createdById: userId,
-        responsibleUserId: userId,
+        responsibleUserId: dto.responsibleUserId ?? userId,
         year: dto.year ?? null,
         month: dto.month ?? null,
         dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
@@ -79,8 +79,8 @@ export class ProcessInstancesService {
     return instance;
   }
 
-  findAll(userId: number, userRole: UserRole) {
-    const whereCondition = userRole === UserRole.ADMINISTRADOR
+  findAll(userId: number, userRole: UserRole, search?: string) {
+    const accessCondition = userRole === UserRole.ADMINISTRADOR
       ? {}
       : {
         OR: [
@@ -88,6 +88,21 @@ export class ProcessInstancesService {
           { responsibleUserId: userId },
         ],
       };
+
+    // Si hay búsqueda, agregar filtro por título o nombre de pasos
+    const searchCondition = search
+      ? {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' as const } },
+          { steps: { some: { title: { contains: search, mode: 'insensitive' as const } } } },
+        ],
+      }
+      : {};
+
+    // Combinar condiciones
+    const whereCondition = search
+      ? { AND: [accessCondition, searchCondition] }
+      : accessCondition;
 
     return this.prisma.processInstance.findMany({
       where: whereCondition,
@@ -687,6 +702,122 @@ export class ProcessInstancesService {
       stepInstance,
       message: `Paso "${stepName}" agregado exitosamente`,
     };
+  }
+
+  /**
+   * Delega un paso a un usuario específico
+   */
+  async assignStep(stepId: number, assignedToId: number, userId?: number) {
+    const step = await this.prisma.stepInstance.findUnique({
+      where: { id: stepId },
+      include: { processInstance: true, assignedTo: true },
+    });
+
+    if (!step) {
+      throw new NotFoundException(`Paso #${stepId} no encontrado`);
+    }
+
+    const assignedUser = await this.prisma.user.findUnique({
+      where: { id: assignedToId },
+    });
+
+    if (!assignedUser) {
+      throw new NotFoundException(`Usuario #${assignedToId} no encontrado`);
+    }
+
+    const updated = await this.prisma.stepInstance.update({
+      where: { id: stepId },
+      data: { assignedToId },
+      include: {
+        assignedTo: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+
+    await this.auditLog.log({
+      action: AuditActions.UPDATE,
+      entityType: EntityTypes.STEP_INSTANCE,
+      entityId: stepId,
+      description: `Paso "${step.title}" delegado a ${assignedUser.fullName}`,
+      userId,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Elimina la delegación de un paso
+   */
+  async unassignStep(stepId: number, userId?: number) {
+    const step = await this.prisma.stepInstance.findUnique({
+      where: { id: stepId },
+      include: { assignedTo: true },
+    });
+
+    if (!step) {
+      throw new NotFoundException(`Paso #${stepId} no encontrado`);
+    }
+
+    const updated = await this.prisma.stepInstance.update({
+      where: { id: stepId },
+      data: { assignedToId: null },
+    });
+
+    if (step.assignedTo) {
+      await this.auditLog.log({
+        action: AuditActions.UPDATE,
+        entityType: EntityTypes.STEP_INSTANCE,
+        entityId: stepId,
+        description: `Delegación del paso "${step.title}" removida (antes: ${step.assignedTo.fullName})`,
+        userId,
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Actualiza el usuario responsable de un proceso
+   */
+  async updateResponsible(instanceId: number, responsibleUserId: number | null, userId?: number) {
+    const instance = await this.prisma.processInstance.findUnique({
+      where: { id: instanceId },
+      include: { responsibleUser: true },
+    });
+
+    if (!instance) {
+      throw new NotFoundException(`Proceso #${instanceId} no encontrado`);
+    }
+
+    let newResponsible: { id: number; fullName: string } | null = null;
+    if (responsibleUserId) {
+      newResponsible = await this.prisma.user.findUnique({
+        where: { id: responsibleUserId },
+        select: { id: true, fullName: true },
+      });
+      if (!newResponsible) {
+        throw new NotFoundException(`Usuario #${responsibleUserId} no encontrado`);
+      }
+    }
+
+    const updated = await this.prisma.processInstance.update({
+      where: { id: instanceId },
+      data: { responsibleUserId },
+      include: {
+        responsibleUser: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+
+    await this.auditLog.log({
+      action: AuditActions.UPDATE,
+      entityType: EntityTypes.PROCESS_INSTANCE,
+      entityId: instanceId,
+      description: newResponsible
+        ? `Responsable del proceso "${instance.title}" asignado a ${newResponsible.fullName}`
+        : `Responsable del proceso "${instance.title}" removido`,
+      userId,
+    });
+
+    return updated;
   }
 
   /**
