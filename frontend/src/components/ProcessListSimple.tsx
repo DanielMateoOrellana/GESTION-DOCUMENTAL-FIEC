@@ -106,9 +106,16 @@ export function ProcessListSimple({
   }, []);
 
   const filteredProcesses = instances.filter((process) => {
-    const matchesSearch = (process.title ?? "")
+    const searchLower = searchTerm.toLowerCase();
+    // Buscar en título del proceso
+    const matchesTitleSearch = (process.title ?? "")
       .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+      .includes(searchLower);
+    // Buscar en nombres de pasos
+    const matchesStepSearch = process.steps?.some(step =>
+      step.title.toLowerCase().includes(searchLower)
+    ) ?? false;
+    const matchesSearch = matchesTitleSearch || matchesStepSearch;
 
     const matchesYear =
       filterYear === "all" ||
@@ -386,6 +393,12 @@ export function ProcessListSimple({
                   const totalSteps = minSteps.length;
                   const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
+                  // Encontrar pasos que coinciden con la búsqueda
+                  const searchLower = searchTerm.toLowerCase();
+                  const matchingSteps = searchTerm.trim()
+                    ? minSteps.filter(step => step.title.toLowerCase().includes(searchLower))
+                    : [];
+
                   return (
                     <TableRow
                       key={process.id}
@@ -401,11 +414,24 @@ export function ProcessListSimple({
                       <TableCell>
                         {getProcessTypeName(process.processTypeId)}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {process.title ||
-                          (process.processTypeId
-                            ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""}`
-                            : `Proceso ${process.id}`)}
+                      <TableCell className="max-w-xs">
+                        <div>
+                          <div className="truncate">
+                            {process.title ||
+                              (process.processTypeId
+                                ? `${getProcessTypeName(process.processTypeId)} ${process.year ?? ""}`
+                                : `Proceso ${process.id}`)}
+                          </div>
+                          {matchingSteps.length > 0 && (
+                            <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                              <span className="font-medium">Coincide en paso:</span>
+                              <span className="italic">
+                                {matchingSteps.map(s => s.title).slice(0, 2).join(", ")}
+                                {matchingSteps.length > 2 && ` (+${matchingSteps.length - 2} más)`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {process.year ?? new Date(process.createdAt).getFullYear()}
