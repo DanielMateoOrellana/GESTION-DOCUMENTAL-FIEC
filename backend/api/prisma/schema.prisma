@@ -67,6 +67,7 @@ model ProcessTemplate {
   name        String
   description String
   isActive    Boolean @default(true)
+  isLocked    Boolean @default(false) // Plantillas bloqueadas solo editables por ADMIN
 
   processTypeId Int
   processType   ProcessType @relation(fields: [processTypeId], references: [id])
@@ -153,6 +154,10 @@ model StepInstance {
   templateStepId Int
   templateStep   ProcessTemplateStep @relation(fields: [templateStepId], references: [id])
 
+  // Usuario asignado a este paso (delegación)
+  assignedToId Int?
+  assignedTo   User? @relation("UserAssignedSteps", fields: [assignedToId], references: [id])
+
   dueAt       DateTime? // fecha límite de este paso
   completedAt DateTime? // cuándo se subió el archivo y se dio por completado
 
@@ -199,6 +204,7 @@ model User {
   // Relaciones de gestión
   processInstances ProcessInstance[] @relation("UserProcessInstances")
   uploadedFiles    StepFile[]        @relation("UserStepFiles")
+  assignedSteps    StepInstance[]    @relation("UserAssignedSteps") // Pasos delegados a este usuario
   
   // Relaciones de creación (quién creó qué)
   createdCategories       ProcessCategory[]  @relation("UserCreatedCategories")
