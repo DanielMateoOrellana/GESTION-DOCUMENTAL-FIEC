@@ -192,7 +192,7 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {currentStep === 1
@@ -475,6 +475,12 @@ export function CreateTemplateModal({ open, onClose }: CreateTemplateModalProps)
               Cancelar
             </Button>
             <div className="flex gap-2">
+              {currentStep === 2 && (
+                <Button variant="outline" onClick={handleAddStep}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Paso
+                </Button>
+              )}
               {currentStep === 2 && (
                 <Button variant="outline" onClick={handleBack}>
                   Atrás

@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, Plus, Loader2, FolderOpen, FileUp, Download, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Plus, Loader2, FolderOpen, FileUp, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { CreateProcessModal } from "./CreateProcessModal";
 import { ImportProcessModal } from "./ImportProcessModal";
@@ -72,6 +72,28 @@ export function ProcessListSimple({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<ApiProcessInstance | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Sorting state
+  type SortField = 'type' | 'title' | 'year' | 'responsible' | 'status';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('title');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="w-4 h-4 ml-1" />
+      : <ArrowDown className="w-4 h-4 ml-1" />;
+  };
 
   // Años dinámicos según lo que viene del backend
   const years = Array.from(
@@ -137,6 +159,38 @@ export function ProcessListSimple({
     return matchesSearch && matchesYear && matchesState && matchesType;
   });
 
+  const getProcessTypeName = (id?: number | null) => {
+    if (id == null) return "—";
+    return processTypes.find((t) => t.id === id)?.name ?? `Tipo #${id}`;
+  };
+
+  // Ordenar los procesos filtrados
+  const sortedProcesses = [...filteredProcesses].sort((a, b) => {
+    let comparison = 0;
+    switch (sortField) {
+      case 'type':
+        const typeA = getProcessTypeName(a.processTypeId);
+        const typeB = getProcessTypeName(b.processTypeId);
+        comparison = typeA.localeCompare(typeB);
+        break;
+      case 'title':
+        comparison = (a.title || '').localeCompare(b.title || '');
+        break;
+      case 'year':
+        comparison = (a.year || 0) - (b.year || 0);
+        break;
+      case 'responsible':
+        const respA = a.responsibleUser?.fullName || '';
+        const respB = b.responsibleUser?.fullName || '';
+        comparison = respA.localeCompare(respB);
+        break;
+      case 'status':
+        comparison = (a.estado || '').localeCompare(b.estado || '');
+        break;
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
   const handleSelectAll = () => {
     if (selectedItems.length === filteredProcesses.length) {
       setSelectedItems([]);
@@ -190,11 +244,6 @@ export function ProcessListSimple({
       return { label: "Completado", color: "bg-green-100 text-green-800" };
     }
     return { label: "Pendiente", color: "bg-yellow-100 text-yellow-800" };
-  };
-
-  const getProcessTypeName = (id?: number | null) => {
-    if (id == null) return "—";
-    return processTypes.find((t) => t.id === id)?.name ?? `Tipo #${id}`;
   };
 
   const hasActiveFilters = filterYear !== "all" || filterState !== "all" || filterType !== "all";
@@ -370,16 +419,56 @@ export function ProcessListSimple({
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Año</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('type')}
+                    >
+                      Tipo
+                      <SortIcon field="type" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('title')}
+                    >
+                      Título
+                      <SortIcon field="title" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('year')}
+                    >
+                      Año
+                      <SortIcon field="year" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('responsible')}
+                    >
+                      Responsable
+                      <SortIcon field="responsible" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      Estado
+                      <SortIcon field="status" />
+                    </button>
+                  </TableHead>
                   <TableHead>Progreso</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProcesses.map((process) => {
+                {sortedProcesses.map((process) => {
                   const state = getSimplifiedState(process.estado);
 
                   const responsibleLabel =

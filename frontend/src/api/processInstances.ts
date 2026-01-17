@@ -20,6 +20,13 @@ export type StepInstance = {
     fullName: string;
     email: string;
   } | null;
+  templateStep?: {
+    id: number;
+    name: string;
+    description: string | null;
+    order: number;
+    isMandatory: boolean;
+  } | null;
 };
 
 export type ProcessInstance = {

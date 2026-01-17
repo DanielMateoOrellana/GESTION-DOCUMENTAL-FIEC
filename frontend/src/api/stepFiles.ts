@@ -9,6 +9,11 @@ export type StepFileSummary = {
   version: number;
   uploadedAt: string;
   uploadedById: number | null;
+  uploadedBy?: {
+    id: number;
+    fullName: string;
+    email: string;
+  } | null;
 };
 
 export async function listStepFiles(stepId: number): Promise<StepFileSummary[]> {

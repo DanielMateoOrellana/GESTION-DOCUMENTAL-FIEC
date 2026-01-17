@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Plus, Edit, FileText, AlertTriangle, Filter, Lock } from 'lucide-react';
+import { Plus, Edit, FileText, AlertTriangle, Filter, Lock, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { User } from '../types';
 import { toast } from 'sonner';
 import { CreateTemplateModal } from './CreateTemplateModal';
@@ -49,6 +49,28 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Sorting state
+  type SortField = 'name' | 'type' | 'status' | 'steps';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="w-4 h-4 ml-1" />
+      : <ArrowDown className="w-4 h-4 ml-1" />;
+  };
 
   const loadData = async () => {
     try {
@@ -84,6 +106,30 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
       (filterStatus === 'obsolete' && !template.isActive);
 
     return matchesType && matchesStatus;
+  });
+
+  // Ordenar las plantillas filtradas
+  const sortedTemplates = [...filteredTemplates].sort((a, b) => {
+    let comparison = 0;
+    switch (sortField) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'type':
+        const typeA = a.processType?.name || '';
+        const typeB = b.processType?.name || '';
+        comparison = typeA.localeCompare(typeB);
+        break;
+      case 'status':
+        comparison = (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
+        break;
+      case 'steps':
+        const stepsA = a.steps?.length || 0;
+        const stepsB = b.steps?.length || 0;
+        comparison = stepsA - stepsB;
+        break;
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
   });
 
   const handleSelectAll = () => {
@@ -261,16 +307,48 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      Nombre
+                      <SortIcon field="name" />
+                    </button>
+                  </TableHead>
                   <TableHead>Descripción</TableHead>
-                  <TableHead>Tipo de proceso</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Pasos</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('type')}
+                    >
+                      Tipo de proceso
+                      <SortIcon field="type" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      Estado
+                      <SortIcon field="status" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('steps')}
+                    >
+                      Pasos
+                      <SortIcon field="steps" />
+                    </button>
+                  </TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTemplates.map((template) => {
+                {sortedTemplates.map((template) => {
                   const stepCount = getStepCount(template.id);
                   const processTypeName = template.processType?.name ?? 'Sin tipo';
 

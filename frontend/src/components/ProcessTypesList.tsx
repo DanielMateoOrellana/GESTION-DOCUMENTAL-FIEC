@@ -56,7 +56,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { Plus, Edit, Trash2, AlertTriangle, FolderTree, CheckCircle, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, FolderTree, CheckCircle, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
 import { FormField } from './ui/form-field';
@@ -115,6 +115,12 @@ export function ProcessTypesList({
   // Category manager state
   const [showCategoryManager, setShowCategoryManager] = useState(false);
 
+  // Sorting state
+  type SortField = 'name' | 'category' | 'status';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
   // Cargar categorías y tipos desde el backend
   const loadData = async () => {
     try {
@@ -152,6 +158,44 @@ export function ProcessTypesList({
     () => safeProcessTypes.filter((t) => t.isActive),
     [safeProcessTypes]
   );
+
+  // Sorted types
+  const sortedTypes = useMemo(() => {
+    const sorted = [...activeTypes].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'category':
+          const catA = a.category?.name || '';
+          const catB = b.category?.name || '';
+          comparison = catA.localeCompare(catB);
+          break;
+        case 'status':
+          comparison = (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [activeTypes, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="w-4 h-4 ml-1" />
+      : <ArrowDown className="w-4 h-4 ml-1" />;
+  };
 
   const allActiveSelected =
     activeTypes.length > 0 &&
@@ -445,20 +489,44 @@ export function ProcessTypesList({
                       aria-label="Seleccionar todos"
                     />
                   </TableHead>
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      Nombre
+                      <SortIcon field="name" />
+                    </button>
+                  </TableHead>
                   <TableHead>Descripción</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('category')}
+                    >
+                      Categoría
+                      <SortIcon field="category" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-primary transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      Estado
+                      <SortIcon field="status" />
+                    </button>
+                  </TableHead>
                   <TableHead>Plantillas</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeTypes.map((type) => {
-                  const templatesCount = (type as any)._count?.templates ?? 0;
+                {sortedTypes.map((type) => {
+                  const templatesCount = (type as any)._count?.templates ?? (type as any).templates?.length ?? 0;
 
                   return (
-                    <TableRow key={type.id}>
+                    <TableRow key={type.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell>
                         <Checkbox
                           checked={selectedItems.includes(type.id)}

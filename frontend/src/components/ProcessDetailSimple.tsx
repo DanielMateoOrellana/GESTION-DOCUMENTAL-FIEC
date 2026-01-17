@@ -83,6 +83,13 @@ type ApiStep = {
   createdAt: string;
   updatedAt: string;
   files?: StepFileSummary[];
+  templateStep?: {
+    id: number;
+    name: string;
+    description: string | null;
+    order: number;
+    isMandatory: boolean;
+  } | null;
 };
 
 // Las etiquetas ahora vienen del backend en process.tags
@@ -374,10 +381,15 @@ export function ProcessDetailSimple({
   const createdAtRaw = process.createdAt;
   const state = getSimplifiedState(process.estado);
 
-  const completedSteps = steps.filter((s) => s.estado === "COMPLETADO").length;
+  // Progreso: solo considerar pasos obligatorios
+  const mandatorySteps = steps.filter((s) => s.templateStep?.isMandatory !== false);
+  const completedMandatorySteps = mandatorySteps.filter((s) => s.estado === "COMPLETADO").length;
   const progressPercent =
-    steps.length > 0 ? Math.round((completedSteps * 100) / steps.length) : 0;
-  const allStepsComplete = steps.length > 0 && completedSteps === steps.length;
+    mandatorySteps.length > 0 ? Math.round((completedMandatorySteps * 100) / mandatorySteps.length) : 100;
+  const allMandatoryComplete = mandatorySteps.length === 0 || completedMandatorySteps === mandatorySteps.length;
+
+  // Para mostrar stats totales
+  const totalCompletedSteps = steps.filter((s) => s.estado === "COMPLETADO").length;
 
   return (
     <div className="p-6 space-y-6">
@@ -495,14 +507,14 @@ export function ProcessDetailSimple({
             </>
           )}
 
-          {allStepsComplete && process.estado !== "COMPLETADO" && (
+          {allMandatoryComplete && process.estado !== "COMPLETADO" && (
             <>
               <Separator />
               <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <span className="text-sm">
-                    Todos los pasos han sido completados
+                    Todos los pasos obligatorios han sido completados
                   </span>
                 </div>
                 <Button onClick={handleMarkComplete}>
@@ -625,6 +637,9 @@ export function ProcessDetailSimple({
                               v{file.version} ·{" "}
                               {(file.sizeBytes / 1024).toFixed(1)} KB ·{" "}
                               {formatDateTime(file.uploadedAt)}
+                              {file.uploadedBy && (
+                                <> · Subido por: <span className="font-medium">{file.uploadedBy.fullName}</span></>
+                              )}
                             </div>
                           </div>
                         </div>

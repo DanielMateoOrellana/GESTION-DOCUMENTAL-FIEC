@@ -269,7 +269,7 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {currentStep === 1
@@ -416,10 +416,9 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
                                     <div>
                                         <h3 className="font-medium">Pasos de la plantilla</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Edite los detalles de los pasos existentes. No se pueden agregar ni eliminar pasos.
+                                            Edite, agregue o elimine los pasos de la plantilla.
                                         </p>
                                     </div>
-                                    {/* Botón de agregar paso eliminado para restringir edición */}
                                 </div>
 
                                 <div className="space-y-3">
@@ -538,6 +537,12 @@ export function EditTemplateModal({ open, onClose, templateId, onTemplateUpdated
                                 Eliminar
                             </Button>
                             <div className="flex gap-2">
+                                {currentStep === 2 && (
+                                    <Button variant="outline" onClick={handleAddStep}>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Agregar Paso
+                                    </Button>
+                                )}
                                 <Button variant="outline" onClick={onClose}>
                                     Cancelar
                                 </Button>
