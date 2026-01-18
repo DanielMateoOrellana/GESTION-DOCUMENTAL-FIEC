@@ -111,21 +111,15 @@ export function AppSidebar({
               </p>
             </div>
           </div>
-          <Button
+          <button
             onClick={onLogout}
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-            size="sm"
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent rounded-md transition-colors"
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
+            <LogOut className="w-4 h-4" />
+            <span>Cerrar Sesión</span>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>
   );
-}
-
-function Button({ children, ...props }: any) {
-  return <button {...props}>{children}</button>;
 }
