@@ -57,7 +57,7 @@ export function Login({ onSwitchToRegister }: LoginProps) {
           <div>
             <CardTitle>Repositorio Institucional de Evidencias</CardTitle>
             <CardDescription>
-              FIEC - Facultad de Ingeniería Eléctrica y Computación
+              FIEC - Facultad de Ingeniería en Electricidad y Computación
             </CardDescription>
           </div>
         </CardHeader>
