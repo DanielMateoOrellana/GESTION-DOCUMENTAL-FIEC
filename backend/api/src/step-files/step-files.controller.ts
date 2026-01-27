@@ -26,7 +26,7 @@ export class StepFilesController {
   constructor(private readonly stepFilesService: StepFilesService) { }
 
   @Post(':stepId/files')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.GESTOR, UserRole.AYUDANTE, UserRole.LECTOR)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),

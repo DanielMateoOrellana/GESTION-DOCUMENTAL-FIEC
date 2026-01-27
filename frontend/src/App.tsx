@@ -5,6 +5,7 @@ import { ProcessDetailSimple } from './components/ProcessDetailSimple';
 import { AdminPanel } from './components/AdminPanel';
 import { TemplateManagerSimple } from './components/TemplateManagerSimple';
 import { ProcessTypesList } from './components/ProcessTypesList';
+import { FileExplorer } from './components/FileExplorer';
 import { Login } from './components/Login';
 import { AppSidebar } from './components/AppSidebar';
 import logoEspol from './assets/2793a7bad49c6296879d99578377c2b3f531f7e5.png'; // Ajusta si la ruta es diferente
@@ -20,7 +21,8 @@ type ViewType =
   | 'process-detail'
   | 'admin'
   | 'templates'
-  | 'process-types';
+  | 'process-types'
+  | 'file-explorer';
 
 interface ViewData {
   processId?: number;
@@ -98,6 +100,8 @@ export default function App() {
         );
       case 'templates':
         return <TemplateManagerSimple currentUser={currentUser} />;
+      case 'file-explorer':
+        return <FileExplorer currentUser={currentUser} />;
       case 'process-types':
         return (
           <ProcessTypesList

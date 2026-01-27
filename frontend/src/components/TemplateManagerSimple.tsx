@@ -178,11 +178,6 @@ export function TemplateManagerSimple({ currentUser }: TemplateManagerSimpleProp
           </p>
         </div>
         <div className="flex gap-2">
-          {selectedItems.length > 0 && (
-            <Button variant="outline" onClick={handleExport}>
-              Exportar seleccionados ({selectedItems.length})
-            </Button>
-          )}
           <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nueva plantilla

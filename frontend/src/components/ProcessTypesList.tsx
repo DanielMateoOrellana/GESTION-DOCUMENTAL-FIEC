@@ -426,11 +426,6 @@ export function ProcessTypesList({
           </p>
         </div>
         <div className="flex gap-2">
-          {selectedItems.length > 0 && (
-            <Button variant="outline" onClick={handleExport}>
-              Exportar seleccionados ({selectedItems.length})
-            </Button>
-          )}
           {/* Botón Gestionar Categorías - visible para ADMIN y GESTOR */}
           {(currentUser.role === 'ADMINISTRADOR' || currentUser.role === 'GESTOR') && (
             <Button variant="outline" onClick={() => setShowCategoryManager(true)}>

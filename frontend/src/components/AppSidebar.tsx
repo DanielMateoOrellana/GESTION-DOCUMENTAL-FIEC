@@ -5,6 +5,7 @@ import {
   LogOut,
   FileText,
   List,
+  FolderTree,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,7 @@ export function AppSidebar({
       icon: LayoutDashboard,
     },
     { id: "processes", label: "Procesos", icon: FolderKanban },
+    { id: "file-explorer", label: "Explorador", icon: FolderTree },
     { id: "templates", label: "Plantillas", icon: FileText },
     { id: "process-types", label: "Tipos de proceso", icon: List },
     { id: "admin", label: "Administración", icon: Settings, adminOnly: true },
