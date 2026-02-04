@@ -32,6 +32,7 @@ import { fetchProcessCategories, type ProcessCategory } from '../api/processCate
 import { fetchProcessTypes, type ProcessType } from '../api/processTypes';
 import { fetchProcessInstances, type ProcessInstance } from '../api/processInstances';
 import { listStepFiles, getFilePresignedUrl, type StepFileSummary } from '../api/stepFiles';
+import { downloadFolder, type FolderType } from '../api/folderDownload';
 
 interface FileExplorerProps {
     currentUser: User;
@@ -69,6 +70,7 @@ export function FileExplorer({ currentUser }: FileExplorerProps) {
     const [currentItems, setCurrentItems] = useState<FolderItem[]>([]);
     const [selectedProcess, setSelectedProcess] = useState<ProcessInstance | null>(null);
     const [downloadingFile, setDownloadingFile] = useState<number | null>(null);
+    const [downloadingFolder, setDownloadingFolder] = useState(false);
 
     // Filtros
     const [searchQuery, setSearchQuery] = useState('');
@@ -488,6 +490,35 @@ export function FileExplorer({ currentUser }: FileExplorerProps) {
         }
     };
 
+    // Obtener el tipo de carpeta actual para descarga
+    const getCurrentFolderInfo = (): { type: FolderType; id: number } | null => {
+        if (breadcrumb.length <= 1) return null; // En el root no hay descarga
+        const current = breadcrumb[breadcrumb.length - 1];
+        if (current.type === 'root') return null;
+        return { type: current.type as FolderType, id: current.id as number };
+    };
+
+    // Descargar carpeta actual como ZIP
+    const handleFolderDownload = async () => {
+        const folderInfo = getCurrentFolderInfo();
+        if (!folderInfo) return;
+
+        setDownloadingFolder(true);
+        try {
+            await downloadFolder(folderInfo.type, folderInfo.id);
+            toast.success('Descarga iniciada');
+        } catch (error: any) {
+            console.error('Error descargando carpeta:', error);
+            if (error.response?.status === 404) {
+                toast.error('No hay archivos para descargar en esta carpeta');
+            } else {
+                toast.error('Error al descargar la carpeta');
+            }
+        } finally {
+            setDownloadingFolder(false);
+        }
+    };
+
     // Formatear tamaño de archivo
     const formatFileSize = (bytes?: number) => {
         if (!bytes) return '';
@@ -638,18 +669,36 @@ export function FileExplorer({ currentUser }: FileExplorerProps) {
             {/* Contenido */}
             <Card>
                 <CardHeader className="pb-3">
-                    <CardTitle className="text-base">
-                        {isGlobalSearch ? (
-                            <>
-                                {searching ? 'Buscando...' : `${globalSearchResults.length} resultado(s)`}
-                                <span className="text-muted-foreground font-normal ml-2">(búsqueda global)</span>
-                            </>
-                        ) : (
-                            <>
-                                {filteredItems.length} {filteredItems.length === 1 ? 'elemento' : 'elementos'}
-                            </>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">
+                            {isGlobalSearch ? (
+                                <>
+                                    {searching ? 'Buscando...' : `${globalSearchResults.length} resultado(s)`}
+                                    <span className="text-muted-foreground font-normal ml-2">(búsqueda global)</span>
+                                </>
+                            ) : (
+                                <>
+                                    {filteredItems.length} {filteredItems.length === 1 ? 'elemento' : 'elementos'}
+                                </>
+                            )}
+                        </CardTitle>
+                        {/* Botón de descargar carpeta */}
+                        {breadcrumb.length > 1 && !isGlobalSearch && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleFolderDownload}
+                                disabled={downloadingFolder}
+                            >
+                                {downloadingFolder ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Descargar carpeta
+                            </Button>
                         )}
-                    </CardTitle>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {loading || searching ? (

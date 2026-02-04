@@ -9,6 +9,7 @@ import { ProcessTypesModule } from './process-types/process-types.module';
 import { ProcessTemplatesModule } from './process-templates/process-templates.module';
 import { ProcessInstancesModule } from './process-instances/process-instances.module';
 import { StepFilesModule } from './step-files/step-files.module';
+import { FolderDownloadModule } from './folder-download/folder-download.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
@@ -31,6 +32,7 @@ import { RolesGuard } from './auth/roles.guard';
     ProcessTemplatesModule,
     ProcessInstancesModule,
     StepFilesModule,
+    FolderDownloadModule,
     AuthModule,
     UsersModule,
   ],
